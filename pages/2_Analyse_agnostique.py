@@ -10,6 +10,7 @@ import tempfile
 import time
 import matplotlib.pyplot as plt
 import plotly.express as px
+import base64
 
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -20,22 +21,17 @@ import catboost as cb
 from sklearn.ensemble import RandomForestRegressor
 import seaborn as sns
 
-def download_models(automl):
-    
-    archive_path = shutil.make_archive('models', 'zip', automl._results_path)
-    
-
-    with open(archive_path, "rb") as f:
-        bytes_content = f.read()
-        b64 = base64.b64encode(bytes_content).decode()
-
-    href = f'<a href="data:application/zip;base64,{b64}" download="models.zip">Download Trained Models.zip File</a>'
-    st.markdown(href, unsafe_allow_html=True)
 
 def cleaned_data(input_data, inputs, outputs):
     X = input_data[inputs]
     y = input_data[outputs]
     return X, y
+
+def download_model(model, model_name):
+    output_model = pickle.dumps(model)
+    b64 = base64.b64encode(output_model).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="{model_name}.pkl">Download Trained {model_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
 
 def create_random_forest():
@@ -163,7 +159,7 @@ with tab2:
             end_time = time.time()
             training_time = round(end_time - start_time, 2)
             app(training_time)
-            st.write(model, 'trained')
+            st.success(model + ' trained')
         st.write('All Models trained')
         st.subheader('Performance')
     if st.button('Calculer les erreurs'):
@@ -211,11 +207,7 @@ with tab3:
     st.subheader('Télécharger un modèle')
 
     if st.button('Télécharger les modèles'):
-        def download_model(model, model_name):
-            output_model = pickle.dumps(model)
-            b64 = base64.b64encode(output_model).decode()
-            href = f'<a href="data:file/output_model;base64,{b64}" download="{model_name}.pkl">Download Trained {model_name} Model</a>'
-            st.markdown(href, unsafe_allow_html=True)
+       
 
         for i in range(len(st.session_state['liste_models'])):
             model_name = st.session_state['liste_models'][i]

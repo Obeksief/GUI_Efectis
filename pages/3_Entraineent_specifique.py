@@ -70,22 +70,33 @@ if 'model' not in st.session_state:
 tab1, tab2, tab3 = st.tabs(["importer les données", "choisir les entrées et les sorties", "performance"])
 
 with tab1:
+    st.subheader('Données utilisées :')
     if 'data' in st.session_state:
         st.dataframe(st.session_state.data)
 
-with tab2:
-    st.subheader('In / Out')
+    st.subheader('Définir les entrées et les sorties')
     if 'data' in st.session_state:
         features = st.session_state['data'].columns
         liste = [str(_) for _ in features]
         inputs = st.multiselect("What are the inputs:", liste)
         outputs = st.multiselect('What are the outputs:', liste)
+
+        ###################################################
+        ## Bric à brac ici si on permet plusieurs models ##
+        ###################################################
+        
+
         if st.button("valider la saisie"):
             X_scaled, y, scaler = get_cleaned_data(st.session_state.data, inputs, outputs)
             st.session_state['X_scaled'] = X_scaled
             st.session_state['y'] = y
             st.session_state['scaler'] = scaler
             st.write('Data preparation done')
+
+with tab2:
+    st.write('yo')
+    
+
 
 with tab3:
     if st.button('Valider la saisie'):
