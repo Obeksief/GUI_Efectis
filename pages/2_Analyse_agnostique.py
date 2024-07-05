@@ -9,6 +9,7 @@ import base64
 import tempfile
 import time
 import matplotlib.pyplot as plt
+import plotly.express as px
 
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -111,6 +112,10 @@ tab1, tab2, tab3 = st.tabs(["1", "2", "3"])
 display_features = False
 entrainement = False
 
+# A Supprimer ###########################
+st.session_state['data'] = pd.read_excel('Donnees.xlsx')
+#######################################
+
 with tab1:
     st.dataframe(st.session_state['data'])
     st.subheader('Inputs et Outputs')
@@ -160,9 +165,7 @@ with tab2:
             app(training_time)
             st.write(model, 'trained')
         st.write('All Models trained')
-
-with tab3:
-    st.subheader('Performance')
+        st.subheader('Performance')
     if st.button('Calculer les erreurs'):
         for model in st.session_state['liste_models']:
             y_pred = st.session_state[model].predict(st.session_state['X_test'])
@@ -174,7 +177,8 @@ with tab3:
        
 
         # Create a dataframe to store the accuracy and training time of each model
-        data = {'Model': [], 'Accuracy': [], 'Training Time': []}
+        data1 = {'Model': [], 'Accuracy': []}
+        data2 = {'Model': [], 'Training Time': []}
 
         # Iterate over each model in the list
         for model in st.session_state['liste_models']:
@@ -184,22 +188,38 @@ with tab3:
             training_time = st.session_state['times'][st.session_state['liste_models'].index(model)]
 
             # Add the model, accuracy, and training time to the dataframe
-            data['Model'].append(model)
-            data['Accuracy'].append(acc)
-            data['Training Time'].append(training_time)
+            data1['Model'].append(model)
+            data2['Model'].append(model)
+            data1['Accuracy'].append(acc)
+            data2['Training Time'].append(training_time)
 
         # Convert the data dictionary to a dataframe
-        df = pd.DataFrame(data)
+        df1 = pd.DataFrame(data1)
+        df2 = pd.DataFrame(data2)
 
         st.subheader('Model Performance')
         
-        fig, ax = plt.subplot()
-        ax.scatter(data['Model'], data['Accuracy'])
-        st.pyplot(fig)
+        fig1 = px.scatter(df1, x='Model', y='Accuracy',size='Accuracy', title='Model Performance')
 
-        figu, axu = plt.subplot()
-        axu.scatter(data['Model'], data['Training Time'])
-        st.pyplot(figu)
-                
+        st.plotly_chart(fig1)
+
+        fig2 = px.bar(df2, x='Model', y='Training Time', title='Training Time')
+
+        st.plotly_chart(fig2)
+
+with tab3:
+    st.subheader('Télécharger un modèle')
+
+    if st.button('Télécharger les modèles'):
+        def download_model(model, model_name):
+            output_model = pickle.dumps(model)
+            b64 = base64.b64encode(output_model).decode()
+            href = f'<a href="data:file/output_model;base64,{b64}" download="{model_name}.pkl">Download Trained {model_name} Model</a>'
+            st.markdown(href, unsafe_allow_html=True)
+
+        for i in range(len(st.session_state['liste_models'])):
+            model_name = st.session_state['liste_models'][i]
+            download_model(st.session_state[model_name], model_name)
+
 
 

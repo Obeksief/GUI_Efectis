@@ -2,23 +2,6 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide", page_title="Dataset")
-
-'''tab1, tab2, tab3 = st.tabs(["1", "2", "3"])
-
-with tab1:
-    col_1, col_2 = st.columns((1,1))
-    with col_1:
-        st.subheader('Entrez les données d\'entraînement')
-        uploaded_file = st.file_uploader("Uploader un fichier Excel (.xlsx)")
-        df = None
-        if uploaded_file is not None:
-                    
-                    st.session_state['data'] = pd.read_excel(uploaded_file)
-                    display_features = True
-                    
-    with col_2:
-        if 'data' in st.session_state:
-            st.dataframe(st.session_state['data'])'''
             
 def load_data():
     df = None
@@ -73,13 +56,12 @@ if dataset_choix == "Choisir un dataset personnel":
                 st.write("##")
                 st.write("##")
                 st.write("##")
-                st.session_state.separateur = st.text_input("Séparateur (optionnel): ")
             st.write("##")
 
             load_data()
 
             st.markdown("<p class='petite_section'>Modifications du dataset : </p>", unsafe_allow_html=True)
-            col1_1, b_1, col2_1, c_1, col3_1 = st.columns((1, 0.2, 1, 0.2, 1))  # pour time series
+            col1_1, b_1, col2_1, c_1, col3_1 = st.columns((1, 0.2, 1, 0.2, 1)) 
             st.write("##")
             option_col_update = st.session_state.data.columns.tolist()
 
