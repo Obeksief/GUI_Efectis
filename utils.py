@@ -1,20 +1,14 @@
 import streamlit as st
-import supervised as sp
 import pandas as pd
 from sklearn.model_selection import train_test_split
-import shutil
-import os
 import pickle
 import base64
-import tempfile
 import time
 import matplotlib.pyplot as plt
 import plotly.express as px
 import base64
-
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
 import xgboost as xgb
 from sklearn.neural_network import MLPRegressor
 import catboost as cb
