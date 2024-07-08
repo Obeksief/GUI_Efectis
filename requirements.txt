@@ -11,5 +11,3 @@ tensorflow
 tensorflow_intel
 xgboost
 openpyxl
-~lotly
-
