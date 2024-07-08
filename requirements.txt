@@ -1,0 +1,15 @@
+catboost
+keras
+matplotlib
+numpy
+pandas
+plotly
+scikit_learn
+seaborn
+streamlit
+tensorflow
+tensorflow_intel
+xgboost
+openpyxl
+~lotly
+
