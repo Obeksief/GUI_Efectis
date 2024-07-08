@@ -18,7 +18,7 @@ def get_cleaned_data(input_data, inputs, outputs):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    return X_scaled, y, scaler
+    return X, X_scaled, y, scaler
 
 def create_model():
     mini_model = tf.keras.Sequential([
@@ -69,6 +69,11 @@ if 'model' not in st.session_state:
 
 tab1, tab2, tab3 = st.tabs(["importer les données", "choisir les entrées et les sorties", "performance"])
 
+
+##############################################
+###             Tab 1                      ###
+##############################################
+
 with tab1:
     st.subheader('Données utilisées :')
     if 'data' in st.session_state:
@@ -81,14 +86,21 @@ with tab1:
         inputs = st.multiselect("What are the inputs:", liste)
         outputs = st.multiselect('What are the outputs:', liste)
 
+        # A Supprimer ############
+        inputs = ['x1', 'x2', 'x3']
+        outputs = ['y']
+        st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
+        ##########################
+
         ###################################################
         ## Bric à brac ici si on permet plusieurs models ##
         ###################################################
         
 
         if st.button("valider la saisie"):
-            X_scaled, y, scaler = get_cleaned_data(st.session_state.data, inputs, outputs)
+            X, X_scaled, y, scaler = get_cleaned_data(st.session_state.data, inputs, outputs)
             st.session_state['X_scaled'] = X_scaled
+            st.session_state['X'] = X
             st.session_state['y'] = y
             st.session_state['scaler'] = scaler
             st.write('Data preparation done')
@@ -101,7 +113,7 @@ with tab2:
 with tab3:
     if st.button('Valider la saisie'):
         if 'X_scaled' in st.session_state and 'y' in st.session_state:
-            error = train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y'])
+            error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
             st.write(f"Mean Absolute Percentage Error: {error}%")
             download_model(st.session_state['model'])
             download_scaler(st.session_state['scaler'])

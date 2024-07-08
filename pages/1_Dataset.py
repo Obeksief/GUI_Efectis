@@ -13,8 +13,11 @@ def generate_excel_download_link(df):
 
 st.set_page_config(layout="wide", page_title="Dataset")
             
-#if 'data' in st.session_state:
-        #del st.session_state.data
+if 'data' in st.session_state:
+        del st.session_state.data
+
+if 'data' not in st.session_state:
+    st.session_state.data = None
 
 if "drop_col" not in st.session_state:
     st.session_state.drop_col = ""
@@ -40,12 +43,17 @@ dataset_choix = "Choisir un dataset personnel"
 if dataset_choix == "Choisir un dataset personnel":
     with col1_1:
         uploaded_file = st.file_uploader("", type=['xlsx'])
+
+        ## A Supprimer ###########################
+        #uploaded_file = 'Donnees.xlsx'
+        ##########################################
+
         df = None
         if uploaded_file is not None :
             st.session_state['data'] = pd.read_excel(uploaded_file)
             
         # uploaded_file = 0
-        if uploaded_file is not None:
+        if st.session_state['data'] is not None:
             st.session_state.file_details = {"FileName": uploaded_file.name,
                                              "FileType": uploaded_file.type,
                                              "FileSize": uploaded_file.size}
@@ -73,7 +81,8 @@ if dataset_choix == "Choisir un dataset personnel":
             st.markdown("<p class='petite_section'>Modifications du dataset : </p>", unsafe_allow_html=True)
             col1_1, b_1, col2_1, c_1, col3_1 = st.columns((1, 0.2, 1, 0.2, 1)) 
             st.write("##")
-            option_col_update = st.session_state.data.columns.tolist()
+            if st.session_state.data is not None:
+                option_col_update = st.session_state.data.columns.tolist()
 
             #with col1_1:
                 #st.session_state.col_to_time = st.multiselect(label='Conversion Time Series',
@@ -88,7 +97,8 @@ if dataset_choix == "Choisir un dataset personnel":
                                                                     #options=option_col_update,
                                                                     #)
             with col1_1:
-                st.session_state.drop_col = st.multiselect(label='Retirer des colonnes',
+                if st.session_state.data is not None:
+                    st.session_state.drop_col = st.multiselect(label='Retirer des colonnes',
                                                            options=option_col_update,
                                                            )
 
@@ -118,27 +128,29 @@ if dataset_choix == "Choisir un dataset personnel":
                         st.error("Transformation impossible ou déjà effectuée")
 
             with col1:
-                st.write("##")
-                st.markdown('<p class="section">Aperçu</p>', unsafe_allow_html=True)
-                st.write(st.session_state.data.head(50))
-                st.write("##")
+                if st.session_state.data is not None:
+                    st.write("##")
+                    st.markdown('<p class="section">Aperçu</p>', unsafe_allow_html=True)
+                    st.write(st.session_state.data.head(50))
+                    st.write("##")
 
             ############################
             ##         EDA            ##
             ############################
 
             with col2:
-                st.write("##")
-                st.markdown('<p class="section">Caractéristiques</p>', unsafe_allow_html=True)
-                st.write(' - Taille:', st.session_state.data.shape)
-                st.write(' - Nombre de valeurs:', st.session_state.data.shape[0] * st.session_state.data.shape[1])
-                st.write(' - Type des colonnes:', st.session_state.data.dtypes.value_counts())
-                st.write(' - Pourcentage de valeurs manquantes:', round(
-                    sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) * 100 / (
-                            st.session_state.data.shape[0] * st.session_state.data.shape[1]), 2),
-                         ' % (', sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()), ')')
-            
-            generate_excel_download_link(st.session_state.data)
+                if st.session_state.data is not None:
+                    st.write("##")
+                    st.markdown('<p class="section">Caractéristiques</p>', unsafe_allow_html=True)
+                    st.write(' - Taille:', st.session_state.data.shape)
+                    st.write(' - Nombre de valeurs:', st.session_state.data.shape[0] * st.session_state.data.shape[1])
+                    st.write(' - Type des colonnes:', st.session_state.data.dtypes.value_counts())
+                    st.write(' - Pourcentage de valeurs manquantes:', round(
+                        sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) * 100 / (
+                                st.session_state.data.shape[0] * st.session_state.data.shape[1]), 2),
+                            ' % (', sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()), ')')
+            if st.session_state.data is not None:
+                generate_excel_download_link(st.session_state.data)
     st.session_state.choix_dataset = "Vous avez choisi de selectionner votre dataset"
     with col1_1:
         st.write('yo')
