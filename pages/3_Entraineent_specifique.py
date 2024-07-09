@@ -106,8 +106,8 @@ with tab1:
             st.write('Data preparation done')
 
 with tab2:
-    st.write('yo')
-    
+    st.subheader('Choix des hyperparamètres')
+    st.write('-temps d\'entrainement, -nombre de couches, -nombre de neurones, -fonctions d\'activation, -fonctions de perte, -optimiseur, -learning rate, -batch size, -epochs')
 
 
 with tab3:
