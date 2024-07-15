@@ -24,7 +24,7 @@ from utils import *
 
 st.title('Modeles')
 
-tab1, tab2, tab3 = st.tabs(["1", "2", "3"])
+tab1, tab2, tab3 = st.tabs(["Choisir les entrées et les sorties", "Choix des modèles à entraîner", "Téléchargement"])
 
 display_features = False
 entrainement = False
@@ -46,6 +46,8 @@ with tab1:
         liste = [str(_) for _ in features]
         inputs = st.multiselect("What are the inputs:", liste)
         outputs = st.multiselect('What are the outputs:', liste)
+        st.session_state['inputs'] = inputs
+        st.session_state['outputs'] = outputs
 
         # A Supprimer ############
         inputs = ['x1', 'x2', 'x3']
@@ -84,14 +86,15 @@ with tab2:
         st.write('Models created')
         st.session_state['times']= []
         app = st.session_state['times'].append
-        for model in liste_models:
-            start_time = time.time()
-            st.session_state[model] = globals()[f'train_{model.lower().replace(" ", "_")}'](st.session_state[model], st.session_state['X_train'], st.session_state['y_train'])
-            end_time = time.time()
-            training_time = round(end_time - start_time, 2)
-            app(training_time)
-            st.success(model + ' trained')
-        st.write('All Models trained')
+        with st.spinner('Training models...'):
+            for model in liste_models:
+                start_time = time.time()
+                st.session_state[model] = globals()[f'train_{model.lower().replace(" ", "_")}'](st.session_state[model], st.session_state['X_train'], st.session_state['y_train'])
+                end_time = time.time()
+                training_time = round(end_time - start_time, 2)
+                app(training_time)
+                st.success(model + ' trained')
+        st.success('All Models trained')
         st.subheader('Performance')
     if st.button('Calculer les erreurs'):
         for model in st.session_state['liste_models']:

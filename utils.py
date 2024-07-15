@@ -14,6 +14,17 @@ from sklearn.neural_network import MLPRegressor
 import catboost as cb
 from sklearn.ensemble import RandomForestRegressor
 import seaborn as sns
+import tensorflow as tf
+from io import BytesIO
+import base64
+
+def generate_excel_download_link(df, nom):
+    towrite = BytesIO()
+    df.to_excel(towrite, index=False, header=True)  # write to BytesIO buffer
+    towrite.seek(0)  # reset pointer
+    b64 = base64.b64encode(towrite.read()).decode()
+    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{nom}.xlsx">Download {nom} File</a>'
+    return st.markdown(href, unsafe_allow_html=True)
 
 
 def cleaned_data(input_data, inputs, outputs):
@@ -91,3 +102,46 @@ def scale_data(X, y):
     st.session_state['scaler_2'] = scaler_2
     
     return X_scaled, y_scaled
+
+def get_cleaned_data(input_data, inputs, outputs):
+    X = input_data[inputs]
+    y = input_data[outputs]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    return X, X_scaled, y, scaler
+
+def create_model():
+    mini_model = tf.keras.Sequential([
+        tf.keras.layers.Dense(32, activation='gelu'),
+        tf.keras.layers.Dense(32, activation='gelu'),
+        tf.keras.layers.Dense(1)
+    ])
+    mini_model.compile(loss=tf.keras.losses.mse,
+                       optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.012),
+                       metrics=['mse'])
+    
+    return mini_model
+
+def train_model(model, X_scaled, y):
+    
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.15, random_state=3)
+    
+        
+    model.fit(X_train, y_train, epochs=100, validation_split=0.15, shuffle=True, verbose=0)
+    
+    
+    y_pred = model.predict(X_test)
+    st.write(f"y_pred shape: {y_pred.shape}")
+        
+    acc = mean_absolute_percentage_error(y_test, y_pred) * 100
+    return acc
+
+
+
+def download_scaler(scaler):
+    output_scaler = pickle.dumps(scaler)
+    b64 = base64.b64encode(output_scaler).decode()
+    href = f'<a href="data:file/output_scaler;base64,{b64}" download="scaler.pkl">Download scaler .pkl File</a>'
+    st.markdown(href, unsafe_allow_html=True)

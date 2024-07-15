@@ -10,56 +10,30 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import base64
 import traceback
+from utils import *
+from sklearn.model_selection import cross_val_score
+import optuna
 
-def get_cleaned_data(input_data, inputs, outputs):
-    X = input_data[inputs]
-    y = input_data[outputs]
+def objective(trial):
+    first_hidden_layer = trial.suggest_categorical('first_hidden_layer', [2,4,8,16,32,64,128])
+    second_hidden_layer = trial.suggest_categorical('second_hidden_layer', [2,4,8,16,32,64,128])
+    alpha = trial.suggest_float('alpha', 0.0001, 0.01)
 
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    return X, X_scaled, y, scaler
-
-def create_model():
-    mini_model = tf.keras.Sequential([
-        tf.keras.layers.Dense(32, activation='gelu'),
-        tf.keras.layers.Dense(32, activation='gelu'),
-        tf.keras.layers.Dense(1)
-    ])
-    mini_model.compile(loss=tf.keras.losses.mse,
-                       optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.012),
-                       metrics=['mse'])
     
-    return mini_model
+    model = MLPRegressor(hidden_layer_sizes=[first_hidden_layer, second_hidden_layer],
+                         activation='relu',
+                         solver='adam',
+                         alpha=alpha,
+                         learning_rate='adaptive',
+                         max_iter=500,
+                         validation_fraction=0.15,
+                         early_stopping=True,)
 
-def train_model(model, X_scaled, y):
     
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.15, random_state=3)
-        
-    # Debugging: Print shapes of train and test sets
-    st.write(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
-    st.write(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
-        
-    model.fit(X_train, y_train, epochs=100, validation_split=0.15, shuffle=True, verbose=0)
+    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
     
-    
-    y_pred = model.predict(X_test)
-    st.write(f"y_pred shape: {y_pred.shape}")
-        
-    acc = mean_absolute_percentage_error(y_test, y_pred) * 100
-    return acc
+    return score.mean()
 
-def download_model(model):
-    output_model = pickle.dumps(model)
-    b64 = base64.b64encode(output_model).decode()
-    href = f'<a href="data:file/output_model;base64,{b64}" download="model.pkl">Download Trained Model .pkl File</a>'
-    st.markdown(href, unsafe_allow_html=True)
-
-def download_scaler(scaler):
-    output_scaler = pickle.dumps(scaler)
-    b64 = base64.b64encode(output_scaler).decode()
-    href = f'<a href="data:file/output_scaler;base64,{b64}" download="scaler.pkl">Download scaler .pkl File</a>'
-    st.markdown(href, unsafe_allow_html=True)
 
 st.title('Training page')
 
@@ -83,7 +57,7 @@ with tab1:
     if 'data' in st.session_state:
         features = st.session_state['data'].columns
         liste = [str(_) for _ in features]
-        inputs = st.multiselect("What are the inputs:", liste)
+        inputs = st.multiselect("Quel:", liste)
         outputs = st.multiselect('What are the outputs:', liste)
 
         # A Supprimer ############
@@ -105,16 +79,34 @@ with tab1:
             st.session_state['scaler'] = scaler
             st.write('Data preparation done')
 
+            with st.spinner('Optimizing hyperparameters...'):
+             
+                study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
+
+                study.optimize(objective, n_trials=5)
+                
+                st.session_state['best_params'] = study.best_params
+                
+##############################################
+###             Tab 2                      ###
+##############################################
+
 with tab2:
     st.subheader('Choix des hyperparamètres')
-    st.write('-temps d\'entrainement, -nombre de couches, -nombre de neurones, -fonctions d\'activation, -fonctions de perte, -optimiseur, -learning rate, -batch size, -epochs')
+    
 
+##############################################
+###             Tab 3                      ###
+##############################################
 
 with tab3:
     if st.button('Valider la saisie'):
         if 'X_scaled' in st.session_state and 'y' in st.session_state:
-            error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
+            with st.spinner('Training model...'):
+                error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
+            st.success('Done!')
+            
             st.write(f"Mean Absolute Percentage Error: {error}%")
-            download_model(st.session_state['model'])
+            download_model(st.session_state['model'], 'model_name')
             download_scaler(st.session_state['scaler'])
 
