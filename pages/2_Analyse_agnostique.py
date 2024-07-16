@@ -106,24 +106,24 @@ with tab2:
 
        
 
-        # Create a dataframe to store the accuracy and training time of each model
+      
         data1 = {'Model': [], 'Accuracy': []}
         data2 = {'Model': [], 'Training Time': []}
 
-        # Iterate over each model in the list
+       
         for model in st.session_state['liste_models']:
-            # Get the accuracy and training time for the current model
+            
             y_pred = st.session_state[model].predict(st.session_state['X_test'])
             acc = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100, 2)
             training_time = st.session_state['times'][st.session_state['liste_models'].index(model)]
 
-            # Add the model, accuracy, and training time to the dataframe
+           
             data1['Model'].append(model)
             data2['Model'].append(model)
             data1['Accuracy'].append(acc)
             data2['Training Time'].append(training_time)
 
-        # Convert the data dictionary to a dataframe
+        
         df1 = pd.DataFrame(data1)
         df2 = pd.DataFrame(data2)
 

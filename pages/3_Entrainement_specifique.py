@@ -105,8 +105,15 @@ with tab3:
             with st.spinner('Training model...'):
                 error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
             st.success('Done!')
-            
+            def download_model_and_scaler(model,scaler, file_name):
+                file = (model, scaler)
+                output = pickle.dumps(file)
+                b64 = base64.b64encode(output).decode()
+                href = f'<a href="data:file/output_model;base64,{b64}" download="neural_network_{file_name}.pkl">Download Trained {file_name} Model</a>'
+                st.markdown(href, unsafe_allow_html=True)
+                
             st.write(f"Mean Absolute Percentage Error: {error}%")
-            download_model(st.session_state['model'], 'model_name')
-            download_scaler(st.session_state['scaler'])
+            #download_model(st.session_state['model'], 'model_name')
+            #download_scaler(st.session_state['scaler'])
+            download_model_and_scaler(st.session_state['model'], st.session_state['scaler'], 'model_name')
 

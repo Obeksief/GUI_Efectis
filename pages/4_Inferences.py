@@ -17,8 +17,12 @@ model_file = None
 
 st.title('Inferences')
 
-tab1, tab2, tab3 = st.tabs(["Importer les données et le modèle", "Prédictions"])
+tab1, tab2 = st.tabs(["Importer les données et le modèle", "Prédictions"])
 goo = False
+
+##################################
+###          Tab 1              ##
+##################################
 
 with tab1:
     st.subheader('Upload des données à inférer')
@@ -33,41 +37,34 @@ with tab1:
                 df = pd.read_csv(new_data)
                 
             st.session_state['new_data'] = df
-        
+
     st.subheader('Importer le modèle')
     model_file = st.file_uploader('Uploader votre modèle')
     if model_file is not None:
         try:
-            model_file.seek(0)  
-            reconstructed_model = pickle.load(model_file)
-            goo = True
-            st.write("Modèle chargé avec succès.")
+            #model_file.seek(0)
+            model_bytes = model_file.read()
+            if model_file.name.startswith('neural_network'):
+                output = pickle.loads(model_bytes)
+                reconstructed_model = output[0]
+                reconstructed_scaler = output[1] 
+
+                st.write("Modèle réseau de neurones chargé avec succès.")
         except Exception as e:
             st.write("Erreur lors du chargement du modèle :", e)
-            try:
-                model_file.seek(0)  
-                reconstructed_model = pickle.load(model_file)
-                st.write("Modèle chargé avec succès en utilisant pickle.")
-                goo = True
-            except Exception as e2:
-                st.write("Erreur lors du chargement du modèle avec pickle:", e2)
-    st.subheader('Si votre modèle est un réseau de neurones, veuillez importer le scaler utilisé pour l\'entrainement')
-    scaler_file = st.file_uploader('Uploader votre scaler')
+     
+        if st.button('Valider'):
+            goo = True
+        
 
-    if scaler_file is not None:
-        try:
-            scaler = pickle.load(scaler_file)
-            st.write("Scaler chargé avec succès.")
-        except Exception as e:
-            st.write("Erreur lors du chargement du scaler:", e)
-    
-            
-            
+##################################
+###          Tab 2              ##
+##################################
             
 with tab2:
-    if goo :
-        if scaler_file is not None:
-            st.session_state['new_data'] = get_cleaned_data(st.session_state['new_data'],scaler)
+    if st.button('Démarrer l\'inférence'):
+        if reconstructed_scaler is not None:
+            st.session_state['new_data'] = get_cleaned_data(st.session_state['new_data'],reconstructed_scaler)
         prediction = reconstructed_model.predict(st.session_state['new_data'])
         concatenated_df = pd.concat([pd.DataFrame(st.session_state['new_data']), pd.DataFrame(prediction)], axis=1)
         generate_excel_download_link(concatenated_df, 'prediction')

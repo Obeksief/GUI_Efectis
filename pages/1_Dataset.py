@@ -42,13 +42,13 @@ if dataset_choix == "Choisir un dataset personnel":
         df = None
         if uploaded_file is not None :
             st.session_state['data'] = pd.read_excel(uploaded_file)
-            
-        # uploaded_file = 0
+        st.session_state['uploaded'] = 0  
         if st.session_state['data'] is not None:
             st.session_state.file_details = {"FileName": uploaded_file.name,
                                              "FileType": uploaded_file.type,
                                              "FileSize": uploaded_file.size}
             st.success('Fichier ' + st.session_state.file_details['FileName'] + ' chargé avec succès !')
+            st.session_state['uploaded'] = 1
         
 
     
@@ -73,8 +73,6 @@ if dataset_choix == "Choisir un dataset personnel":
             #####################################
             ##     Choix Inputs / Outputs      ##
             #####################################
-
-            st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
 
 
 
@@ -125,6 +123,10 @@ if dataset_choix == "Choisir un dataset personnel":
                         st.dataframe(st.session_state.data)
                     except:
                         st.error("Transformation impossible ou déjà effectuée")
+            
+            ######################################
+            ##          Aperçu du dataset       ##
+            ######################################
 
             with col1:
                 if st.session_state.data is not None:
@@ -132,6 +134,16 @@ if dataset_choix == "Choisir un dataset personnel":
                     st.markdown('<p class="section">Aperçu</p>', unsafe_allow_html=True)
                     st.write(st.session_state.data.head(50))
                     st.write("##")
+
+            st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
+
+            if st.session_state['uploaded'] == 1:
+                features = st.session_state['data'].columns
+                liste = [str(_) for _ in features]
+                inputs = st.multiselect("What are the inputs:", liste)
+                outputs = st.multiselect('What are the outputs:', liste)
+                st.session_state['inputs'] = inputs
+                st.session_state['outputs'] = outputs
 
             ############################
             ##         EDA            ##
