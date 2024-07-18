@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import generate_excel_download_link
+from utils import *
 
 
 st.set_page_config(layout="wide", page_title="Dataset")
@@ -49,8 +49,52 @@ if dataset_choix == "Choisir un dataset personnel":
                                              "FileSize": uploaded_file.size}
             st.success('Fichier ' + st.session_state.file_details['FileName'] + ' chargé avec succès !')
             st.session_state['uploaded'] = 1
-        
 
+            #####################################
+            ##     Choix Inputs / Outputs      ##
+            #####################################
+
+            st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
+
+            if st.session_state['uploaded'] == 1:
+                features = st.session_state['data'].columns
+                liste = [str(_) for _ in features]
+                inputs = st.multiselect(label="What are the inputs:", options=liste, default=liste)
+                outputs = st.multiselect('What are the outputs:', liste)
+
+                ## A Supprimer ##################
+                inputs = ['x1', 'x2', 'x3']
+                outputs = ['y']
+                st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
+                ###########################
+
+                ##########################################
+                ##    Initialisation des variables      ##
+                ##########################################
+
+                if st.button("Valider la saisie"):
+                    
+                    st.session_state['inputs'] = inputs
+                    st.session_state['outputs'] = outputs
+
+                    st.session_state['X'], st.session_state['y'] = cleaned_data(st.session_state.data, st.session_state['inputs'], st.session_state['outputs'] )
+                    X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], st.session_state['y'], test_size=0.15, random_state=3)
+                    X, X_scaled, y, scaler = get_cleaned_data(st.session_state.data,st.session_state["inputs"] , st.session_state["outputs"])
+                    st.session_state['X_scaled'] = X_scaled
+                    st.session_state['X'] = X
+                    st.session_state['y'] = y
+                    st.session_state['scaler'] = scaler
+                    st.session_state['X_train'] = X_train
+                    st.session_state['y_train'] = y_train
+                    st.session_state['X_test'] = X_test
+                    st.session_state['y_test'] = y_test
+
+
+                    st.success('Data preparation done')
+
+            
+
+                    
     
 
     if uploaded_file is None:
@@ -70,9 +114,7 @@ if dataset_choix == "Choisir un dataset personnel":
                 st.write("##")
             st.write("##")
 
-            #####################################
-            ##     Choix Inputs / Outputs      ##
-            #####################################
+            
 
 
 
@@ -135,15 +177,7 @@ if dataset_choix == "Choisir un dataset personnel":
                     st.write(st.session_state.data.head(50))
                     st.write("##")
 
-            st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
-
-            if st.session_state['uploaded'] == 1:
-                features = st.session_state['data'].columns
-                liste = [str(_) for _ in features]
-                inputs = st.multiselect("What are the inputs:", liste)
-                outputs = st.multiselect('What are the outputs:', liste)
-                st.session_state['inputs'] = inputs
-                st.session_state['outputs'] = outputs
+            
 
             ############################
             ##         EDA            ##

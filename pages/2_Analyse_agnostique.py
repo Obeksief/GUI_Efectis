@@ -24,14 +24,12 @@ from utils import *
 
 st.title('Modeles')
 
-tab1, tab2, tab3 = st.tabs(["Choisir les entrées et les sorties", "Choix des modèles à entraîner", "Téléchargement"])
+tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Choix des modèles à entraîner", "Téléchargement"])
 
 display_features = False
 entrainement = False
 
-# A Supprimer ###########################
-st.session_state['data'] = pd.read_excel('Donnees.xlsx')
-#######################################
+
 
 
 #########################################
@@ -39,34 +37,32 @@ st.session_state['data'] = pd.read_excel('Donnees.xlsx')
 #########################################
 
 with tab1:
-    st.dataframe(st.session_state['data'])
-    st.subheader('Inputs et Outputs')
-    if 'data' in st.session_state:
-        features = st.session_state['data'].columns
-        liste = [str(_) for _ in features]
-        inputs = st.multiselect("What are the inputs:", liste)
-        outputs = st.multiselect('What are the outputs:', liste)
-        st.session_state['inputs'] = inputs
-        st.session_state['outputs'] = outputs
 
-        # A Supprimer ############
-        inputs = ['x1', 'x2', 'x3']
-        outputs = ['y']
-        st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
-        ##########################
+    #################################
+    ##    Aperçu des données       ##
+    #################################
+    col_1, col_2, col_3 = st.columns([1,1,1])
+    if 'data' in st.session_state and st.session_state['data'] is not None:
+        with col_1:
+            st.subheader('Données d\'entrées ')
+            st.dataframe(st.session_state['data'][st.session_state['inputs']])
+        with col_2:
+            st.subheader('Données de sorties ')
+            st.dataframe(st.session_state['data'][st.session_state['outputs']])
 
-        if st.button("valider la saisie"):
+        with col_3:
+            st.subheader('Description')
+            st.write('Ici plusieurs modèles de machine learning vont tenter de prédire les sorties à partir des entrées. ')
+            st.write('  Les modèles seront ensuite comparés pour déterminer le plus performant. ')
+    else : 
+        st.write('Pas de données chargées')
 
-            X, y = cleaned_data(st.session_state.data, inputs, outputs)
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=3)
-
-            st.session_state['X_train'] = X_train
-            st.session_state['y_train'] = y_train
-            st.session_state['X_test'] = X_test
-            st.session_state['y_test'] = y_test
+    
 
 
-            st.write('Data preparation done')
+    if st.button("valider la saisie"):
+
+        pass
 
 
 #########################################
@@ -75,11 +71,8 @@ with tab1:
 
 with tab2:
     st.subheader('Choix du modele')
-    liste_models = st.multiselect('Choisir les modeles', ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
+    liste_models = st.multiselect(label='Choisir les modeles', options=['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'], default=['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
     if st.button('Valider les choix'):
-        ## A Supprimer ##################
-        liste_models = ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost']
-        ################################
         st.session_state['liste_models'] = liste_models
         for model in liste_models:
             st.session_state[model] = globals()[f'create_{model.lower().replace(" ", "_")}']()
