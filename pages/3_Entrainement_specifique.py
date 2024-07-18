@@ -342,7 +342,7 @@ with tab2:
 
                     with st.spinner('Optimisation des hyperparamètres...'):
                         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_xgboost, n_trials=20)
+                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
                         st.session_state['best_params'] = study.best_params
                         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
                         st.session_state['afficher_radar_param_optim'] = True
