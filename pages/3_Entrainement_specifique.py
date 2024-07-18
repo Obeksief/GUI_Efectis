@@ -390,6 +390,7 @@ with tab2:
                     st.session_state['best_params'] = study.best_params
                     st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
                     st.session_state['afficher_radar_param_optim'] = True
+                    st.write('debug')
                     
 
         with col_2:
