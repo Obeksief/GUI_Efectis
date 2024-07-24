@@ -82,10 +82,16 @@ def get_radar_nn_slider():
     min_c = st.session_state['slider_range_batch_size'][0]
     max_c = st.session_state['slider_range_batch_size'][1]
 
-    min_a_scaled = math.log2(min_a)-1/math.log2(128)-1
-    max_a_scaled = math.log2(max_a)-1/math.log2(128)-1
-    min_b_scaled = math.log2(min_b)-1/math.log2(128)-1
-    max_b_scaled = math.log2(max_b)-1/math.log2(128)-1
+    min_a_prescaled = math.log2(min_a)
+    max_a_prescaled = math.log2(max_a)
+    min_b_prescaled = math.log2(min_b)
+    max_b_prescaled = math.log2(max_b)
+
+
+    min_a_scaled = min_a_prescaled/7
+    max_a_scaled = max_a_prescaled/7
+    min_b_scaled = min_b_prescaled/7
+    max_b_scaled = max_b_prescaled/7
     min_c_scaled = math.log10(min_c)/math.log10(100)
     max_c_scaled = math.log10(max_c)/math.log10(100)
 
@@ -245,14 +251,27 @@ def objective_xgboost(trial):
     
     return score.mean()
 
+def launch_optim_xgboost():
+                    st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
+                    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
+                    st.session_state['range_eta'] = st.session_state['slider_range_eta']
+                    st.session_state['range_min_child_weight'] = st.session_state['slider_range_min_child_weight']
+                    st.session_state['nb_trials'] = nb_trial
+
+                    with st.spinner('Optimisation des hyperparamètres...'):
+                        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
+                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
+                        st.session_state['best_params'] = study.best_params
+                        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
+                        st.session_state['afficher_radar_param_optim'] = True
 
 st.title('Training page')
 
-#if 'model' not in st.session_state:
-    #st.session_state['model'] = create_model()
-    #st.write(dir(st.session_state['model']))
+#############################################
+###            Onglets                    ###
+#############################################
 
-tab1, tab2, tab3 = st.tabs(["importer les données", "choisir les entrées et les sorties", "performance"])
+tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Entrainement d\'un modèle dédié", "Téléchargement du modèle"])
 
 
 ##############################################
@@ -275,26 +294,18 @@ with tab1:
         with col_3:
             st.write('ttttest')
 
-        if st.button("Confirmer les données d\'entrainement"):
-            X, X_scaled, y, scaler = get_cleaned_data(st.session_state.data,st.session_state["inputs"] , st.session_state["outputs"])
-            st.session_state['X_scaled'] = X_scaled
-            st.session_state['X'] = X
-            st.session_state['y'] = y
-            st.session_state['scaler'] = scaler
-            st.write('Data preparation done')
 
-            with st.spinner('Optimizing hyperparameters...'):
+            #with st.spinner('Optimizing hyperparameters...'):
              
-                study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
+                #study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
 
-                study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
+                #study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
 
 
-                st.session_state['best_params'] = study.best_params
+                #st.session_state['best_params'] = study.best_params
                 
-                optuna.visualization.plot_parallel_coordinate(study).show()
-
-                st.write(study.best_params)
+                #optuna.visualization.plot_parallel_coordinate(study).show()
+                #st.write(study.best_params)
                 
                 
 
@@ -333,32 +344,27 @@ with tab2:
             st.session_state['categories'] = ['nombre d\'estimateurs', 'profondeur maximale', 'taux d\'apprentissage', 'poids minimal des feuilles']
 
             if st.button('Valider les choix'):
-                def launch_optim_xgboost():
-                    st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
-                    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
-                    st.session_state['range_eta'] = st.session_state['slider_range_eta']
-                    st.session_state['range_min_child_weight'] = st.session_state['slider_range_min_child_weight']
-                    st.session_state['nb_trials'] = nb_trial
-
-                    with st.spinner('Optimisation des hyperparamètres...'):
-                        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
-                        st.session_state['best_params'] = study.best_params
-                        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-                        st.session_state['afficher_radar_param_optim'] = True
                 launch_optim_xgboost()
+                best_param = st.session_state['best_params']
+                best_nb_estimators = best_param['n_estimators']
+                best_max_depth = best_param['max_depth']
+                best_eta = best_param['eta']
+                best_min_child_weight = best_param['min_child_weight']
+                best_model = xgb.XGBRegressor(n_estimators=best_nb_estimators,
+                                             max_depth=best_max_depth,
+                                             eta=best_eta,
+                                             min_child_weight=best_min_child_weight,
+                                             random_state=123)
+                best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
+                st.session_state['model'] = best_model
+                st.session_state['type_model'] = 'XGBoost'
 
         with col_2:
             get_radar_xgboost_slider()
             if st.session_state['afficher_radar_param_optim']:
                 get_radar_xgboost_optim()
 
-    ####################################
-    ##        Random Forest           ##
-    ####################################
-
-    elif model == 'Random Forest':
-        pass
+    
 
     ####################################
     ##        Neural Network          ##
@@ -376,7 +382,7 @@ with tab2:
             st.session_state['nb_epoch'] = st.number_input('Nombre d\'itération parmi les données d\entrainement', min_value=50, max_value=1000, value=500)
     
 
-            nb_trial = st.number_input('Nombre d\'essais', min_value=1, max_value=1000, value=20)
+            nb_trial = st.number_input('Nombre d\'essais', min_value=1, max_value=1000, value=10)
 
             st.session_state['categories'] = ['nombre de neurones première couche', 'nombre de neurones seconde couche', 'taille de batch'] 
 
@@ -390,14 +396,24 @@ with tab2:
                     st.session_state['best_params'] = study.best_params
                     st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
                     st.session_state['afficher_radar_param_optim'] = True
-                    st.write('debug')
                     
-
+                    
         with col_2:
             get_radar_nn_slider()
             if st.session_state['afficher_radar_param_optim']:
                 get_radar_nn_optim()
+        
+    ####################################
+    ##        Random Forest           ##
+    ####################################
+
+    elif model == 'Random Forest':
         pass
+
+    ####################################
+    ##        CatBoost                ##
+    ####################################
+
     elif model == 'CatBoost':
         pass
 
@@ -411,8 +427,14 @@ with tab3:
     if st.button('Valider la saisie'):
         if 'X_scaled' in st.session_state and 'y' in st.session_state:
             with st.spinner('Training model...'):
-                error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
+                if st.session_state['type_model'] == 'Neural_network':
+                    error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
+                else :
+                    y_hat = st.session_state['model'].predict(st.session_state['X_test'])
+                    err = mean_absolute_percentage_error(st.session_state['y_test'], y_hat)*100
+                    error = round(err,2)
             st.success('Done!')
+            st.success(f'Erreur relative :{error}%')
             def download_model_and_scaler(model,scaler, file_name):
                 file = (model, scaler)
                 output = pickle.dumps(file)
@@ -423,5 +445,8 @@ with tab3:
             st.write(f"Mean Absolute Percentage Error: {error}%")
             #download_model(st.session_state['model'], 'model_name')
             #download_scaler(st.session_state['scaler'])
-            download_model_and_scaler(st.session_state['model'], st.session_state['scaler'], 'model_name')
+            if st.session_state['type_model'] == 'Neural Network':
+                download_model_and_scaler(st.session_state['model'], st.session_state['scaler'], 'model_name')
+            else:
+                download_model(st.session_state['model'], st.session_state['type_model'])
 

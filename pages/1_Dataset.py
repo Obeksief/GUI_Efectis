@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
-from utils import *
+from uti import *
 
+def split_input_output(input_data, inputs, outputs):
+    X = input_data[inputs]
+    y = input_data[outputs]
+    return X, y
 
 st.set_page_config(layout="wide", page_title="Dataset")
 st.header("Choix des données d\'entrainement")
@@ -77,17 +81,35 @@ if dataset_choix == "Choisir un dataset personnel":
                     st.session_state['inputs'] = inputs
                     st.session_state['outputs'] = outputs
 
-                    st.session_state['X'], st.session_state['y'] = cleaned_data(st.session_state.data, st.session_state['inputs'], st.session_state['outputs'] )
-                    X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], st.session_state['y'], test_size=0.15, random_state=3)
-                    X, X_scaled, y, scaler = get_cleaned_data(st.session_state.data,st.session_state["inputs"] , st.session_state["outputs"])
-                    st.session_state['X_scaled'] = X_scaled
-                    st.session_state['X'] = X
-                    st.session_state['y'] = y
-                    st.session_state['scaler'] = scaler
+                    # Séparer X et y
+                    st.session_state['X'], st.session_state['y'] = split_input_output(st.session_state.data, 
+                                                                                      st.session_state['inputs'], 
+                                                                                      st.session_state['outputs'])
+                    
+                    # Créer des données scalées ( Créer les variables seesion_state 'scaler_X' et 'scaler_y')
+                    st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X'], 
+                                                                                            st.session_state['y'])
+
+                    X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], 
+                                                                        st.session_state['y'], 
+                                                                        test_size=0.15, 
+                                                                        random_state=3)
+                    
+                    X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled = train_test_split(st.session_state['X_scaled'],
+                                                                                                    st.session_state['y_scaled'],
+                                                                                                    test_size=0.15,
+                                                                                                    random_state=3)
+                    
+                    
                     st.session_state['X_train'] = X_train
-                    st.session_state['y_train'] = y_train
                     st.session_state['X_test'] = X_test
+                    st.session_state['y_train'] = y_train
                     st.session_state['y_test'] = y_test
+                    st.session_state['X_train_scaled'] = X_train_scaled
+                    st.session_state['X_test_scaled'] = X_test_scaled
+                    st.session_state['y_train_scaled'] = y_train_scaled
+                    st.session_state['y_test_scaled'] = y_test_scaled
+
 
 
                     st.success('Data preparation done')

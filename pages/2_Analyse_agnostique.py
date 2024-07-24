@@ -60,10 +60,6 @@ with tab1:
     
 
 
-    if st.button("valider la saisie"):
-
-        pass
-
 
 #########################################
 ####         Tab 2                #######
@@ -82,7 +78,12 @@ with tab2:
         with st.spinner('Training models...'):
             for model in liste_models:
                 start_time = time.time()
-                st.session_state[model] = globals()[f'train_{model.lower().replace(" ", "_")}'](st.session_state[model], st.session_state['X_train'], st.session_state['y_train'])
+                if model == 'Neural Network':
+                    scaler = StandardScaler()
+                    X_train_scaled = scaler.fit_transform(st.session_state['X_train'])
+                    st.session_state[model] = globals()[f'train_{model.lower().replace(" ", "_")}'](st.session_state[model], st.session_state['X_train_scaled'], st.session_state['y_train_scaled'])
+                else:
+                    st.session_state[model] = globals()[f'train_{model.lower().replace(" ", "_")}'](st.session_state[model], st.session_state['X_train'], st.session_state['y_train'])
                 end_time = time.time()
                 training_time = round(end_time - start_time, 2)
                 app(training_time)
@@ -91,9 +92,13 @@ with tab2:
         st.subheader('Performance')
     if st.button('Calculer les erreurs'):
         for model in st.session_state['liste_models']:
-            y_pred = st.session_state[model].predict(st.session_state['X_test'])
-            acc = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100,2)
-            st.write(f"Modele : {model}, erreur : {acc} %")
+            if model == 'Neural Network':
+                y_pred = st.session_state[model].predict(st.session_state['X_test_scaled'])
+                acc = round(mean_absolute_percentage_error(st.session_state['y_test_scaled'], y_pred) * 100, 2)
+            else:
+                y_pred = st.session_state[model].predict(st.session_state['X_test'])
+                acc = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100, 2)
+            st.markdown(f"Modele : {model}, erreur : **{acc} %**")
 
 
 
@@ -126,7 +131,7 @@ with tab2:
 
         st.plotly_chart(fig1)
 
-        fig2 = px.bar(df2, x='Model', y='Training Time', title='Training Time')
+        fig2 = px.bar(df2, x='Model', y='Training Time', title='Temps d\'entrainement')
 
         st.plotly_chart(fig2)
 
