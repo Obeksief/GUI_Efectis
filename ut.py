@@ -119,7 +119,7 @@ def train_model(model, X_scaled, y):
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.15, random_state=3)
     
         
-    model.fit(X_train, y_train, epochs=100, validation_split=0.15, shuffle=True, verbose=0, early_stopping=True, )
+    model.fit(X_train, y_train)
     
     
     y_pred = model.predict(X_test)

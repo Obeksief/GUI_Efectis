@@ -100,7 +100,8 @@ if dataset_choix == "Choisir un dataset personnel":
                                                                                                     test_size=0.15,
                                                                                                     random_state=3)
                     
-                    
+                    # st.session_state['X_scaled']
+                    #  st.session_state['y_scaled']
                     st.session_state['X_train'] = X_train
                     st.session_state['X_test'] = X_test
                     st.session_state['y_train'] = y_train

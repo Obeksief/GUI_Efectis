@@ -11,6 +11,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 import base64
 import traceback
 from utils import *
+from ut import *
 from sklearn.model_selection import cross_val_score
 import optuna
 import xgboost as xgb
@@ -154,7 +155,7 @@ def get_radar_xgboost_optim():
     st.markdown('#### Les hyperparamètres optimaux sont :')
     st.write('nombre d estimateurs :', st.session_state['best_params']['n_estimators'])
     st.write('profondeur maximale :', st.session_state['best_params']['max_depth'])
-    st.write('taux d apprentissage :', round(st.session_state['best_params']['eta'],2))
+    st.write('taux d apprentissage :', round(st.session_state['best_params']['eta'],4))
     st.write('poids minimal des feuilles :', st.session_state['best_params']['min_child_weight'])
 
 def get_radar_xgboost_slider():
@@ -221,11 +222,34 @@ def objective_xgboost(trial):
                              min_child_weight=min_child_weight,
                              random_state=123)
 
-    score = cross_val_score(model, st.session_state['X'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
+    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_squared_error')
+
+
+    ########### Early stopping test + Affichage de l'erreur relative test
+
+    mape_score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_absolute_percentage_error')
+    
+
+    if -mape_score.mean() < (st.session_state['mape_tolerance']/100):
+        st.write('yo',st.session_state['mape_tolerance']/100,'gars sur',-mape_score.mean())
+        st.write('erreur relative :', -mape_score.mean()*100)
+        st.success('Arrêt anticipé')
+        trial.study.stop()
+    ############
+
+
+    ############# Progress bar test
+    error_displayed = -round(mape_score.mean()*100,2)
+    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'], text=f'erreur : {error_displayed} %')
+    #############
     
     return score.mean()
 
 def launch_optim_xgboost():
+                    ############# Progress bar test
+                    progress_text = "Operation in progress. Please wait."
+                    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+                    #############
                     st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
                     st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
                     st.session_state['range_eta'] = st.session_state['slider_range_eta']
@@ -234,7 +258,10 @@ def launch_optim_xgboost():
 
                     with st.spinner('Optimisation des hyperparamètres...'):
                         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
+                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'], timeout=st.session_state['timeout_tolerance'])
+                        ############# Progress bar test
+                        st.session_state['my_bar'].empty()
+                        #############
                         st.session_state['best_params'] = study.best_params
                         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
                         st.session_state['afficher_radar_param_optim'] = True
@@ -563,10 +590,12 @@ with tab2:
         with col_1:
             st.session_state['slider_range_nbr_estimateurs'] = st.slider('Nombre d\'estimateurs', value=[50, 200], step=10, min_value=20, max_value=500)
             st.session_state['slider_range_max_depth'] = st.slider('Profondeur maximale', value=[3, 10], step=1, min_value=1, max_value=15)
-            st.session_state['slider_range_eta'] = st.slider('Taux d\'apprentissage', value=[0.01, 0.2], step=0.1, min_value=0.01, max_value=0.5)
+            st.session_state['slider_range_eta'] = st.slider('Taux d\'apprentissage', value=[0.01, 0.2], step=0.001, min_value=0.001, max_value=0.1)
             st.session_state['slider_range_min_child_weight'] = st.slider('Poids minimal des feuilles', value=[1, 3], step=1, min_value=1, max_value=10)
             
             nb_trial = st.number_input('Nombre d\'essais e combinaisons', min_value=1, max_value=1000, value=20)
+            st.session_state['mape_tolerance'] = st.number_input('Erreur relative acceptée pour un arrêt anticipé ', value=10)
+            st.session_state['timeout_tolerance'] = st.number_input('Temps maximum d\'exécution (en secondes)', value=600)
             
 
             st.session_state['categories'] = ['nombre d\'estimateurs', 'profondeur maximale', 'taux d\'apprentissage', 'poids minimal des feuilles']
@@ -620,9 +649,33 @@ with tab2:
                 with st.spinner('Optimisation des hyperparamètres...'):
                     study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
                     study.optimize(objective_nn, n_trials=st.session_state['nb_trials'])
-                    st.session_state['best_params'] = study.best_params
+                    
                     st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
                     st.session_state['afficher_radar_param_optim'] = True
+
+                    st.session_state['best_params'] = study.best_params
+                    best_first_layer = st.session_state['best_params']['first_layer']
+                    best_second_layer = st.session_state['best_params']['second_layer']
+                    best_batch_size = st.session_state['best_params']['batch_size']
+                    best_model = MLPRegressor(hidden_layer_sizes=[best_first_layer, best_second_layer],
+                                            batch_size=best_batch_size,
+                                            activation='relu',
+                                            solver='adam',
+                                            alpha=0.0001,
+                                            learning_rate='adaptive',
+                                            learning_rate_init=0.1,
+                                            beta_1=0.9,
+                                            beta_2=0.999,
+                                            max_iter=st.session_state['nb_epoch'],
+                                            validation_fraction=0.15,
+                                            early_stopping=True,
+                                            tol=0.0001,
+                                            n_iter_no_change=50)
+                    best_model.fit(st.session_state['X_scaled'], st.session_state['y'])
+                    st.session_state['model'] = best_model
+                    st.session_state['type_model'] = 'Neural_network'
+
+                    
                     
                     
         with col_2:
