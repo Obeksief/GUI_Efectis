@@ -102,31 +102,7 @@ def train_random_forest(random_forest, X, y):
     random_forest.fit(X, y)
     return random_forest
 
-def create_model():
-    mini_model = tf.keras.Sequential([
-        tf.keras.layers.Dense(32, activation='gelu'),
-        tf.keras.layers.Dense(32, activation='gelu'),
-        tf.keras.layers.Dense(1)
-    ])
-    mini_model.compile(loss=tf.keras.losses.mse,
-                       optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.012),
-                       metrics=['mse'])
-    
-    return mini_model
 
-def train_model(model, X_scaled, y):
-    
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.15, random_state=3)
-    
-        
-    model.fit(X_train, y_train)
-    
-    
-    y_pred = model.predict(X_test)
-    st.write(f"y_pred shape: {y_pred.shape}")
-        
-    acc = mean_absolute_percentage_error(y_test, y_pred) * 100
-    return acc
 
 ########################################
 ##         Download Functions         ##

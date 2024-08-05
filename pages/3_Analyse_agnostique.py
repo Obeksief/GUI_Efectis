@@ -128,6 +128,24 @@ with tab2:
                 data2['Modèles'].append(model)
                 data2['temps d\'entraînement'].append(training_time)
 
+                ## A Retirer dès que possible
+                ## Retrait du Temsp d'entrainement XGBoost si ce dernier est beaucoup plus long que CatBoost
+                ## Car il met trop de temps une fois déployé
+                pointeur_XGB = -1
+                pointeur_Cat = -1
+                for i in range(len(data2['Modèles'])):
+                    if data2['Modèles'][i] == 'XGBoost':
+                        pointeur_XGB = i
+                    if data2['Modèles'][i] == 'CatBoost':
+                        pointeur_Cat = i
+                    i = i + 1
+                if pointeur_XGB!= 0 and data2['temps d\'entraînement'][pointeur_XGB] > 20*data2['temps d\'entraînement'][pointeur_Cat]:
+                    st.warning('CatBoost est plus rapide que XGBoost')
+                    data2['Modèles'].pop(pointeur_XGB)
+                    data2['temps d\'entraînement'].pop(pointeur_XGB)
+
+                #######################
+
             st.subheader('Performances')
             
             
@@ -201,6 +219,7 @@ with tab2:
         st.plotly_chart(fig1)
 
         st.subheader('Erreurs absolues des modèles sur l\'ensemble de test')
+
         ### Affichage graphique des erreurs absolues (RMSE)
         fig3 = px.scatter(df4, 
                           x='Modèles', 
@@ -209,7 +228,9 @@ with tab2:
                           color='RMSE_Erreurs', 
                           color_continuous_scale='RdYlGn_r')
         fig3.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
-        st.plotly_chart(fig3)
+        st.plotly_chart(fig3)           
+
+
 
         st.subheader('Temps d\'entrainement des modèles sur l\'ensemble d\'entrainement')
         ### Affichage graphique des temps d'entrainement
