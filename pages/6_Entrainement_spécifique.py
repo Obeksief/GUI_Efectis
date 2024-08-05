@@ -545,6 +545,13 @@ with tab1:
 ##############################################
 
 with tab2:
+    st.subheader('modele par output')
+    # dictionnaire key : output, value : model
+    outputs_models = {}
+    for i in range(len(st.session_state['outputs'])):
+        outputs_models[f'output_{i+1}'] = st.radio(st.session_state['outputs'][i], ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
+    
+    st.write(outputs_models)
     st.subheader('Choix du modèle')
     model = st.selectbox('Choix du modèle', ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
     st.session_state['afficher_radar_param_optim'] = False

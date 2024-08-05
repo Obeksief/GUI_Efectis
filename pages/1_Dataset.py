@@ -67,9 +67,9 @@ if dataset_choix == "Choisir un dataset personnel":
                 outputs = st.multiselect('What are the outputs:', liste)
 
                 ## A Supprimer ##################
-                inputs = ['x1', 'x2', 'x3']
-                outputs = ['y']
-                st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
+                #inputs = ['x1', 'x2', 'x3']
+                #outputs = ['y']
+                #st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
                 ###########################
 
                 ##########################################
@@ -99,6 +99,8 @@ if dataset_choix == "Choisir un dataset personnel":
                                                                                                     st.session_state['y_scaled'],
                                                                                                     test_size=0.15,
                                                                                                     random_state=3)
+                    
+                    st.write('X scaler :', st.session_state['scaler_X'].mean_)
                     
                     # st.session_state['X_scaled']
                     #  st.session_state['y_scaled']
