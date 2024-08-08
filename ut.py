@@ -55,7 +55,7 @@ def create_random_forest():
     return random_forest
 
 def create_neural_network():
-    neural_network = MultiOutputRegressor(MLPRegressor(hidden_layer_sizes=(32, 16),
+    neural_network = MLPRegressor(hidden_layer_sizes=(32, 16),
                                       activation="relu",
                                       solver="adam",
                                       learning_rate="adaptive",
@@ -64,7 +64,7 @@ def create_neural_network():
                                       early_stopping=True,
                                       n_iter_no_change=50,
                                       max_iter=1000,
-                                      random_state=123))
+                                      random_state=123)
     return neural_network
 
 def create_xgboost():
@@ -129,7 +129,7 @@ def download_model(model, model_name):
     href = f'<a href="data:file/output_model;base64,{b64}" download="{model_name}.pkl">Download Trained {model_name} Model</a>'
     st.markdown(href, unsafe_allow_html=True)
 
-def download_model_and_scaler(model,scaler_X, scaler_y, file_name):
+def download_model_and_scalers(model,scaler_X, scaler_y, file_name):
     file = (model, scaler_X, scaler_y)
     output = pickle.dumps(file)
     b64 = base64.b64encode(output).decode()

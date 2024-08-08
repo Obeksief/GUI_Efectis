@@ -19,14 +19,12 @@ import plotly.graph_objects as go
 import math
 import catboost as cb
 
+
 ### NN related functions
 def get_radar_nn_optim():
-    a_prescaled = math.log2(st.session_state['best_params']['first_layer'])
-    b_prescaled = math.log2(st.session_state['best_params']['second_layer'])
-    c_prescaled = math.log10(st.session_state['best_params']['batch_size'])
-    a_scaled = a_prescaled/math.log2(128)
-    b_scaled = b_prescaled/math.log2(128)
-    c_scaled = c_prescaled/math.log10(100)
+    a_scaled = math.log2(st.session_state['best_params']['first_layer'])/math.log2(128)
+    b_scaled = math.log2(st.session_state['best_params']['second_layer'])-1/math.log2(128)-1
+    c_scaled = math.log10(st.session_state['best_params']['batch_size'])/math.log10(100)
 
     fig_radar_optim = go.Figure()
 
@@ -123,35 +121,33 @@ def objective_nn(trial):
                             validation_fraction=0.15,
                             early_stopping=True,
                             tol=0.0001,
-                            n_iter_no_change=50,
-                            random_state=123)
-    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_squared_error')
-
-    ########### Early stopping test + Affichage de l'erreur relative test
-
-    mape_score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_absolute_percentage_error')
-    
-
-    if -mape_score.mean() < (st.session_state['mape_tolerance']/100):
-        st.write('yo',st.session_state['mape_tolerance']/100,'gars sur',-mape_score.mean())
-        st.write('erreur relative :', -mape_score.mean()*100)
-        st.success('Arrêt anticipé')
-        trial.study.stop()
-    ############
-
+                            n_iter_no_change=20)
+    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
 
     ############# Progress bar test
-    error_displayed = -round(mape_score.mean()*100,2)
-    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'], text=f'erreur : {error_displayed} %')
+    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
     #############
+    
 
     return score.mean()
-  
+
 def launch_optim_nn():
-    pass
+    ############# Progress bar test
+    progress_text = "Calcul en cours. Veuillez patienter."
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+    #############
+    st.session_state['nb_trials'] = nb_trial   
 
-
-
+    with st.spinner('Optimisation des hyperparamètres...'):
+        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
+        study.optimize(objective_nn, n_trials=st.session_state['nb_trials'])
+        ############# Progress bar test
+        st.session_state['my_bar'].empty()
+        #############
+        st.session_state['best_params'] = study.best_params
+        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
+        st.session_state['afficher_radar_param_optim'] = True
+  
 ### xgboost related functions
 def get_radar_xgboost_optim():
     a_scaled = (st.session_state['best_params']['n_estimators'] -20)/(500-20)
@@ -182,7 +178,7 @@ def get_radar_xgboost_optim():
     st.markdown('#### Les hyperparamètres optimaux sont :')
     st.write('nombre d estimateurs :', st.session_state['best_params']['n_estimators'])
     st.write('profondeur maximale :', st.session_state['best_params']['max_depth'])
-    st.write('taux d apprentissage :', round(st.session_state['best_params']['eta'],4))
+    st.write('taux d apprentissage :', round(st.session_state['best_params']['eta'],2))
     st.write('poids minimal des feuilles :', st.session_state['best_params']['min_child_weight'])
 
 def get_radar_xgboost_slider():
@@ -249,25 +245,17 @@ def objective_xgboost(trial):
                              min_child_weight=min_child_weight,
                              random_state=123)
 
-    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_squared_error')
+    score = cross_val_score(model, st.session_state['X_train'], st.session_state['y_train'], cv=3, scoring='neg_mean_squared_error')
 
-
-    ########### Early stopping test + Affichage de l'erreur relative test
-
-    mape_score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_absolute_percentage_error')
+    mape_error = mean_absolute_percentage_error(st.session_state['y_test'], model.predict(st.session_state['X_test']))*100
     
 
-    if -mape_score.mean() < (st.session_state['mape_tolerance']/100):
-        st.write('yo',st.session_state['mape_tolerance']/100,'gars sur',-mape_score.mean())
-        st.write('erreur relative :', -mape_score.mean()*100)
-        st.success('Arrêt anticipé')
+    if mape_error < st.session_state['mape_tolerance']:
         trial.study.stop()
-    ############
-
+        st.success('Arrêt anticipé')
 
     ############# Progress bar test
-    error_displayed = -round(mape_score.mean()*100,2)
-    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'], text=f'erreur : {error_displayed} %')
+    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
     #############
     
     return score.mean()
@@ -285,7 +273,7 @@ def launch_optim_xgboost():
 
                     with st.spinner('Optimisation des hyperparamètres...'):
                         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'], timeout=st.session_state['timeout_tolerance'])
+                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
                         ############# Progress bar test
                         st.session_state['my_bar'].empty()
                         #############
@@ -308,10 +296,19 @@ def objective_random_forest(trial):
                                   random_state=123)
 
     score = cross_val_score(model, st.session_state['X'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
+
+    ############# Progress bar test
+    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
+    #############
+    
     
     return score.mean()
 
 def launch_optim_random_forest():
+    ############# Progress bar test
+    progress_text = "Calcul en cours. Veuillez patienter."
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+    #############
     st.session_state['range_n_estimators'] = st.session_state['slider_range_n_estimators']
     st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
     st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split']
@@ -321,6 +318,9 @@ def launch_optim_random_forest():
     with st.spinner('Optimizing hyperparameters...'):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
         study.optimize(objective_random_forest, n_trials=st.session_state['nb_trials'])
+        ############# Progress bar test
+        st.session_state['my_bar'].empty()
+        #############
         st.session_state['best_params'] = study.best_params
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
         st.session_state['afficher_radar_param_optim'] = True
@@ -495,10 +495,19 @@ def objective_catboost(trial):
                               random_state=123)
 
     score = cross_val_score(model, st.session_state['X'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error', verbose=0)
+
+    ############# Progress bar test
+    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
+    #############
+    
     
     return score.mean()
 
 def launch_optim_catboost():
+    ############# Progress bar test
+    progress_text = "Calcul en cours. Veuillez patienter."
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+    #############
     st.session_state['range_n_iterations'] = st.session_state['slider_range_n_iterations']
     st.session_state['range_learning_rate'] = st.session_state['slider_range_learning_rate']
     st.session_state['range_depth'] = st.session_state['slider_range_depth']
@@ -508,6 +517,9 @@ def launch_optim_catboost():
     with st.spinner('Optimizing hyperparameters...'):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
         study.optimize(objective_catboost, n_trials=st.session_state['nb_trials'])
+        ############# Progress bar test
+        st.session_state['my_bar'].empty()
+        #############
         st.session_state['best_params'] = study.best_params
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
         st.session_state['afficher_radar_param_optim'] = True
@@ -542,16 +554,10 @@ def dizaines(debut, fin):
 
     return dizaines_list
 
-def download_model_and_scaler(model,scaler, file_name):
-    file = (model, scaler)
-    output = pickle.dumps(file)
-    b64 = base64.b64encode(output).decode()
-    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
-    st.markdown(href, unsafe_allow_html=True)
 
 
 
-st.title('Training page')
+st.title('Page d\'entrainement spécifique')
 
 #############################################
 ###            Onglets                    ###
@@ -579,221 +585,205 @@ with tab1:
 
         with col_3:
             st.write('ttttest')
-
-    else :
-        st.error('Pas de données')
                 
-
-
+                
 ##############################################
 ###             Tab 2                      ###
 ##############################################
 
 with tab2:
-    if 'X' in st.session_state:
-        st.subheader('Choix du modèle')
-        model = st.selectbox('Choix du modèle', ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
-        st.session_state['afficher_radar_param_optim'] = False
+    st.subheader('modele par output')
+    # dictionnaire key : output, value : model
+    outputs_models = {}
+    for i in range(len(st.session_state['outputs'])):
+        outputs_models[f'output_{i+1}'] = st.radio(st.session_state['outputs'][i], ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
+    
+    st.write(outputs_models)
+    st.subheader('Choix du modèle')
+    model = st.selectbox('Choix du modèle', ['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
+    st.session_state['afficher_radar_param_optim'] = False
 
+    st.subheader('Choix des hyperparamètres')
+     
+    ###################################
+    ##            XGBoost            ##
+    ###################################
 
-        st.subheader('Choix des hyperparamètres')   
+    if model == 'XGBoost':
+
+        col_1, col_2 = st.columns([1,1])
         
-        ###################################
-        ##            XGBoost            ##
-        ###################################
-
-        if model == 'XGBoost':
-
-            col_1, col_2 = st.columns([1,1])
+        with col_1:
+            st.session_state['slider_range_nbr_estimateurs'] = st.slider('Nombre d\'estimateurs', value=[50, 200], step=10, min_value=20, max_value=500)
+            st.session_state['slider_range_max_depth'] = st.slider('Profondeur maximale', value=[3, 10], step=1, min_value=1, max_value=15)
+            st.session_state['slider_range_eta'] = st.slider('Taux d\'apprentissage', value=[0.01, 0.2], step=0.1, min_value=0.01, max_value=0.5)
+            st.session_state['slider_range_min_child_weight'] = st.slider('Poids minimal des feuilles', value=[1, 3], step=1, min_value=1, max_value=10)
             
-            with col_1:
-                st.session_state['slider_range_nbr_estimateurs'] = st.slider('Nombre d\'estimateurs', value=[50, 200], step=10, min_value=20, max_value=500)
-                st.session_state['slider_range_max_depth'] = st.slider('Profondeur maximale', value=[3, 10], step=1, min_value=1, max_value=15)
-                st.session_state['slider_range_eta'] = st.slider('Taux d\'apprentissage', value=[0.01, 0.2], step=0.001, min_value=0.001, max_value=0.1)
-                st.session_state['slider_range_min_child_weight'] = st.slider('Poids minimal des feuilles', value=[1, 3], step=1, min_value=1, max_value=10)
-                
-                nb_trial = st.number_input('Nombre d\'essais e combinaisons', min_value=1, max_value=1000, value=20)
-                st.session_state['mape_tolerance'] = st.number_input('Erreur relative acceptée pour un arrêt anticipé ', value=10)
-                st.session_state['timeout_tolerance'] = st.number_input('Temps maximum d\'exécution (en secondes)', value=600)
-                
-
-                st.session_state['categories'] = ['nombre d\'estimateurs', 'profondeur maximale', 'taux d\'apprentissage', 'poids minimal des feuilles']
-
-                if st.button('Valider les choix'):
-                    launch_optim_xgboost()
-                    best_param = st.session_state['best_params']
-                    best_nb_estimators = best_param['n_estimators']
-                    best_max_depth = best_param['max_depth']
-                    best_eta = best_param['eta']
-                    best_min_child_weight = best_param['min_child_weight']
-                    best_model = xgb.XGBRegressor(n_estimators=best_nb_estimators,
-                                                max_depth=best_max_depth,
-                                                eta=best_eta,
-                                                min_child_weight=best_min_child_weight,
-                                                random_state=123)
-                    best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
-                    st.session_state['model'] = best_model
-                    st.session_state['type_model'] = 'XGBoost'
-
-            with col_2:
-                get_radar_xgboost_slider()
-                if st.session_state['afficher_radar_param_optim']:
-                    get_radar_xgboost_optim()
-                    st.write(st.session_state['best_params'])
-
-        ####################################
-        ##        Neural Network          ##
-        ####################################
-
-        elif model == 'Neural Network':
-            col_1, col_2 = st.columns([1,1])
-
-            with col_1:
-                
-                ## Saisie des hyperparamètres de l'utilisateur ##
-                st.session_state['slider_range_first_layer'] = st.select_slider('Premiere couche', options=[2,4,8,16,32,64,128], value=(8,64))
-                st.session_state['slider_range_second_layer'] = st.select_slider('Seconde couche', options=[2,4,8,16,32,64,128], value=(2,32))
-                st.session_state['slider_range_batch_size'] = st.select_slider('Taille des batches', options=[1,10, 20, 30, 40, 50,60,70,80,100], value=(10, 50))
-                st.session_state['nb_epoch'] = st.number_input('Nombre d\'itération parmi les données d\entrainement', min_value=50, max_value=1000, value=500)
-        
-
-                nb_trial = st.number_input('Nombre d\'essais', min_value=1, max_value=1000, value=10)
-                st.session_state['mape_tolerance'] = st.number_input('Erreur relative acceptée pour un arrêt anticipé ', value=10)
-
-
-                st.session_state['categories'] = ['nombre de neurones première couche', 'nombre de neurones seconde couche', 'taille de batch'] 
-
-                if st.button('Valider les choix'):
-                    st.session_state['nb_trials'] = nb_trial
-                
-
-                    with st.spinner('Optimisation des hyperparamètres...'):
-                        ############# Progress bar test
-                        progress_text = "Operation in progress. Please wait."
-                        st.session_state['my_bar'] = st.progress(0, text=progress_text)
-                        #############
-                        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_nn, n_trials=st.session_state['nb_trials'])
-                        ############# Progress bar test
-                        st.session_state['my_bar'].empty()
-                        #############
-                        
-                        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-                        st.session_state['afficher_radar_param_optim'] = True
-
-                        st.session_state['best_params'] = study.best_params
-                        best_first_layer = st.session_state['best_params']['first_layer']
-                        best_second_layer = st.session_state['best_params']['second_layer']
-                        best_batch_size = st.session_state['best_params']['batch_size']
-                        best_model = MLPRegressor(hidden_layer_sizes=[best_first_layer, best_second_layer],
-                                                batch_size=best_batch_size,
-                                                activation='relu',
-                                                solver='adam',
-                                                alpha=0.0001,
-                                                learning_rate='adaptive',
-                                                learning_rate_init=0.1,
-                                                beta_1=0.9,
-                                                beta_2=0.999,
-                                                max_iter=st.session_state['nb_epoch'],
-                                                validation_fraction=0.15,
-                                                early_stopping=True,
-                                                tol=0.0001,
-                                                n_iter_no_change=50)
-                        best_model.fit(st.session_state['X_scaled'], st.session_state['y_scaled'])
-                        st.session_state['model'] = best_model
-                        st.session_state['type_model'] = 'Neural_network'
-
-                        
-                        
-                        
-            with col_2:
-                get_radar_nn_slider()
-                if st.session_state['afficher_radar_param_optim']:
-                    get_radar_nn_optim()
-                    st.write(st.session_state['best_params'])
+            nb_trial = st.number_input('Nombre d\'essais e combinaisons', min_value=1, max_value=1000, value=20)
             
-        ####################################
-        ##        Random Forest           ##
-        ####################################
+            
 
-        elif model == 'Random Forest':
-            col_1, col_2 = st.columns([1,1])
+            st.session_state['categories'] = ['nombre d\'estimateurs', 'profondeur maximale', 'taux d\'apprentissage', 'poids minimal des feuilles']
 
-            with col_1:
-                st.session_state['slider_range_n_estimators'] = st.slider('Number of estimators', value=[50,200], min_value=10, max_value=500)
-                st.session_state['slider_range_max_depth'] = st.slider('Max depth', value=[3, 10], min_value=1, max_value=50)
-                st.session_state['slider_range_min_samples_split'] = st.slider('Min samples split', value=[2,5], min_value=2, max_value=10)
-                st.session_state['slider_range_min_samples_leaf'] = st.slider('Min samples leaf', value=[1,5], min_value=1, max_value=10)
+            if st.button('Valider les choix'):
+                launch_optim_xgboost()
+                best_param = st.session_state['best_params']
+                best_nb_estimators = best_param['n_estimators']
+                best_max_depth = best_param['max_depth']
+                best_eta = best_param['eta']
+                best_min_child_weight = best_param['min_child_weight']
+                ###### Faire une fonction
+                best_model = xgb.XGBRegressor(n_estimators=best_nb_estimators,
+                                             max_depth=best_max_depth,
+                                             eta=best_eta,
+                                             min_child_weight=best_min_child_weight,
+                                             random_state=123)
+                ######
+                best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
+                st.session_state['model'] = best_model
+                st.session_state['type_model'] = 'XGBoost'
 
-                nb_trial = st.number_input('Number of trials', min_value=1, max_value=1000, value=20)
+        with col_2:
+            get_radar_xgboost_slider()
+            if st.session_state['afficher_radar_param_optim']:
+                get_radar_xgboost_optim()
+                st.write(st.session_state['best_params'])
 
-                st.session_state['categories'] = ['number of estimators', 'max depth', 'min samples split', 'min samples leaf']
+    ####################################
+    ##        Neural Network          ##
+    ####################################
 
-                if st.button('Validate choices'):
-                    launch_optim_random_forest()
-                    best_param = st.session_state['best_params']
-                    best_n_estimators = best_param['n_estimators']
-                    best_max_depth = best_param['max_depth']
-                    best_min_samples_split = best_param['min_samples_split']
-                    best_min_samples_leaf = best_param['min_samples_leaf']
-                    best_model = RandomForestRegressor(n_estimators=best_n_estimators,
-                                                        max_depth=best_max_depth,
-                                                        min_samples_split=best_min_samples_split,
-                                                        min_samples_leaf=best_min_samples_leaf,
-                                                        random_state=123)
-                    best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
-                    st.session_state['model'] = best_model
-                    st.session_state['type_model'] = 'Random Forest'
+    elif model == 'Neural Network':
+        col_1, col_2 = st.columns([1,1])
 
-            with col_2:
-                get_radar_random_forest_slider()
-                if st.session_state['afficher_radar_param_optim']:
-                    get_radar_random_forest_optim()
-                    st.write(st.session_state['best_params'])
+        with col_1:
+            
+            ## Saisie des hyperparamètres de l'utilisateur ##
+            st.session_state['slider_range_first_layer'] = st.select_slider('Premiere couche', options=[2,4,8,16,32,64,128], value=(8,64))
+            st.session_state['slider_range_second_layer'] = st.select_slider('Seconde couche', options=[2,4,8,16,32,64,128], value=(2,32))
+            st.session_state['slider_range_batch_size'] = st.select_slider('Taille des batches', options=[1,10, 20, 30, 40, 50,60,70,80,100], value=(10, 50))
+            st.session_state['nb_epoch'] = st.number_input('Nombre d\'itération parmi les données d\entrainement', min_value=50, max_value=1000, value=500)
+    
 
-        ####################################
-        ##        CatBoost                ##
-        ####################################
+            nb_trial = st.number_input('Nombre d\'essais', min_value=1, max_value=1000, value=10)
 
-        elif model == 'CatBoost':
-            col_1, col_2 = st.columns([1,1])
+            st.session_state['categories'] = ['nombre de neurones première couche', 'nombre de neurones seconde couche', 'taille de batch'] 
 
-            with col_1:
-                st.session_state['slider_range_n_iterations'] = st.slider('Number of iterations', value=[100,500], min_value=50, max_value=1000)
-                st.session_state['slider_range_learning_rate'] = st.slider('Learning rate', value=[0.01, 0.1], min_value=0.001, max_value=0.5)
-                st.session_state['slider_range_depth'] = st.slider('Depth', value=[3, 10], min_value=1, max_value=15)
-                st.session_state['slider_range_subsample'] = st.slider('Subsample', value=[0.5, 0.8], min_value=0.05, max_value=1.)
+            if st.button('Valider les choix'):
+                launch_optim_nn()
 
-                st.session_state['nb_trials'] = st.number_input('Number of trials', min_value=1, max_value=1000, value=20)
-
-                st.session_state['categories'] = ['number of iterations', 'learning rate', 'depth', 'subsample']
-
-                if st.button('Validate choices'):
-                    launch_optim_catboost()
-                    best_param = st.session_state['best_params']
-                    best_n_iterations = best_param['n_iterations']
-                    best_learning_rate = best_param['learning_rate']
-                    best_depth = best_param['depth']
-                    best_subsample = best_param['subsample']
-                    best_model = cb.CatBoostRegressor(iterations=best_n_iterations,
-                                                learning_rate=best_learning_rate,
-                                                depth=best_depth,
-                                                subsample=best_subsample,
-                                                random_state=123)
-                    best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
-                    st.session_state['model'] = best_model
-                    st.session_state['type_model'] = 'CatBoost'
+               
+                best_first_layer = st.session_state['best_params']['first_layer']
+                best_second_layer = st.session_state['best_params']['second_layer']
+                best_batch_size = st.session_state['best_params']['batch_size']
+                best_model = MLPRegressor(hidden_layer_sizes=[best_first_layer, best_second_layer],
+                                            batch_size=best_batch_size,
+                                            activation='relu',
+                                            solver='adam',
+                                            alpha=0.0001,
+                                            learning_rate='adaptive',
+                                            learning_rate_init=0.1,
+                                            beta_1=0.9,
+                                            beta_2=0.999,
+                                            max_iter=st.session_state['nb_epoch'],
+                                            validation_fraction=0.15,
+                                            early_stopping=True,
+                                            tol=0.0001,
+                                            n_iter_no_change=50)
+                best_model.fit(st.session_state['X_scaled'], st.session_state['y'])
+                st.session_state['model'] = best_model
+                st.session_state['type_model'] = 'Neural network'
 
                     
+                    
+                    
+        with col_2:
+            get_radar_nn_slider()
+            if st.session_state['afficher_radar_param_optim']:
+                get_radar_nn_optim()
+                st.write(st.session_state['best_params'])
+        
+    ####################################
+    ##        Random Forest           ##
+    ####################################
 
-            with col_2 :
-                get_radar_catboost_slider()
-                if st.session_state['afficher_radar_param_optim']:
-                    get_radar_catboost_optim()
-                    st.write(st.session_state['best_params'])
+    elif model == 'Random Forest':
+        col_1, col_2 = st.columns([1,1])
 
-    else :
-        st.error('Pas de données')
+        with col_1:
+            st.session_state['slider_range_n_estimators'] = st.slider('Number of estimators', value=[50,200], min_value=10, max_value=500)
+            st.session_state['slider_range_max_depth'] = st.slider('Max depth', value=[3, 10], min_value=1, max_value=50)
+            st.session_state['slider_range_min_samples_split'] = st.slider('Min samples split', value=[2,5], min_value=2, max_value=10)
+            st.session_state['slider_range_min_samples_leaf'] = st.slider('Min samples leaf', value=[1,5], min_value=1, max_value=10)
+
+            nb_trial = st.number_input('Number of trials', min_value=1, max_value=1000, value=20)
+
+            st.session_state['categories'] = ['number of estimators', 'max depth', 'min samples split', 'min samples leaf']
+
+            if st.button('Validate choices'):
+                launch_optim_random_forest()
+                best_param = st.session_state['best_params']
+                best_n_estimators = best_param['n_estimators']
+                best_max_depth = best_param['max_depth']
+                best_min_samples_split = best_param['min_samples_split']
+                best_min_samples_leaf = best_param['min_samples_leaf']
+                best_model = RandomForestRegressor(n_estimators=best_n_estimators,
+                                                    max_depth=best_max_depth,
+                                                    min_samples_split=best_min_samples_split,
+                                                    min_samples_leaf=best_min_samples_leaf,
+                                                    random_state=123)
+                best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
+                st.session_state['model'] = best_model
+                st.session_state['type_model'] = 'Random Forest'
+
+        with col_2:
+            get_radar_random_forest_slider()
+            if st.session_state['afficher_radar_param_optim']:
+                get_radar_random_forest_optim()
+                st.write(st.session_state['best_params'])
+
+    ####################################
+    ##        CatBoost                ##
+    ####################################
+
+    elif model == 'CatBoost':
+        col_1, col_2 = st.columns([1,1])
+
+        with col_1:
+            st.session_state['slider_range_n_iterations'] = st.slider('Number of iterations', value=[100,500], min_value=50, max_value=1000)
+            st.session_state['slider_range_learning_rate'] = st.slider('Learning rate', value=[0.01, 0.1], min_value=0.001, max_value=0.5)
+            st.session_state['slider_range_depth'] = st.slider('Depth', value=[3, 10], min_value=1, max_value=15)
+            st.session_state['slider_range_subsample'] = st.slider('Subsample', value=[0.5, 0.8], min_value=0.05, max_value=1.)
+
+            st.session_state['nb_trials'] = st.number_input('Number of trials', min_value=1, max_value=1000, value=20)
+
+            st.session_state['categories'] = ['number of iterations', 'learning rate', 'depth', 'subsample']
+
+            if st.button('Validate choices'):
+                launch_optim_catboost()
+                best_param = st.session_state['best_params']
+                best_n_iterations = best_param['n_iterations']
+                best_learning_rate = best_param['learning_rate']
+                best_depth = best_param['depth']
+                best_subsample = best_param['subsample']
+                best_model = cb.CatBoostRegressor(iterations=best_n_iterations,
+                                               learning_rate=best_learning_rate,
+                                               depth=best_depth,
+                                               subsample=best_subsample,
+                                               random_state=123)
+                best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
+                st.session_state['model'] = best_model
+                st.session_state['type_model'] = 'CatBoost'
+
+                
+
+        with col_2 :
+            get_radar_catboost_slider()
+            if st.session_state['afficher_radar_param_optim']:
+                get_radar_catboost_optim()
+                st.write(st.session_state['best_params'])
+
+    
 
 ##############################################
 ###             Tab 3                      ###
@@ -803,18 +793,20 @@ with tab3:
     if st.button('Valider la saisie'):
         if 'X_scaled' in st.session_state and 'y' in st.session_state:
             with st.spinner('Training model...'):
-                ## Entraînement du modèle optimal et calcul d'erreur ## 
-                #--------------------------------------------------------------------------#
                 if st.session_state['type_model'] == 'Neural_network':
-                    error = round(train_model(st.session_state['model'], st.session_state['X_test_scaled'], st.session_state['y_test_scaled']),2)
+                    error = round(train_model(st.session_state['model'], st.session_state['X_scaled'], st.session_state['y']),2)
                 else :
                     y_hat = st.session_state['model'].predict(st.session_state['X_test'])
                     err = mean_absolute_percentage_error(st.session_state['y_test'], y_hat)*100
                     error = round(err,2)
-                #--------------------------------------------------------------------------#
             st.success('Done!')
             st.success(f'Erreur relative :{error}%')
-            
+            def download_model_and_scaler(model,scaler, file_name):
+                file = (model, scaler)
+                output = pickle.dumps(file)
+                b64 = base64.b64encode(output).decode()
+                href = f'<a href="data:file/output_model;base64,{b64}" download="neural_network_{file_name}.pkl">Download Trained {file_name} Model</a>'
+                st.markdown(href, unsafe_allow_html=True)
                 
             st.write(f"Mean Absolute Percentage Error: {error}%")
 

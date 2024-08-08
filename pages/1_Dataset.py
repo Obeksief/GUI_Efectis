@@ -54,6 +54,16 @@ if dataset_choix == "Choisir un dataset personnel":
             st.success('Fichier ' + st.session_state.file_details['FileName'] + ' chargé avec succès !')
             st.session_state['uploaded'] = 1
 
+            st.markdown('<p class="section">Aperçu</p>', unsafe_allow_html=True)
+            st.dataframe(st.session_state['data'].head())
+            st.write(' - Taille:', st.session_state['data'].shape)
+            if sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) > 0:
+                st.warning("Attention, il y a des valeurs manquantes dans le dataset. Elles ont été retirées.") #retirés / retirées ?
+                df = st.session_state['data'].dropna()
+                st.session_state['data'] = df
+                st.write(' - Taille après suppression des valeurs manquantes:', st.session_state['data'].shape)
+                #st.info(sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()))
+
             #####################################
             ##     Choix Inputs / Outputs      ##
             #####################################
@@ -61,15 +71,22 @@ if dataset_choix == "Choisir un dataset personnel":
             st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
 
             if st.session_state['uploaded'] == 1:
+                ### Récupérer les labels des input et outputs 
                 features = st.session_state['data'].columns
                 liste = [str(_) for _ in features]
-                inputs = st.multiselect(label="What are the inputs:", options=liste, default=liste)
-                outputs = st.multiselect('What are the outputs:', liste)
+                # inputs
+                inputs = st.multiselect(label="Quelles sont les variables d\'entrées:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
+                # outputs
+                outputs = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
+                # Variables qualitatives
+                if inputs is not None:
+                    one_hot_labels = st.multiselect(label="Quelles sont les variables qualitatives ?", options=inputs, placeholder='Laissez vide si aucune')
 
                 ## A Supprimer ##################
                 #inputs = ['x1', 'x2', 'x3']
                 #outputs = ['y']
                 #st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
+                st.info('Yo flo, tes variables d\'entrées sont x1 x2 et x3 et ta variable de sortie est y') 
                 ###########################
 
                 ##########################################
@@ -80,11 +97,15 @@ if dataset_choix == "Choisir un dataset personnel":
                     
                     st.session_state['inputs'] = inputs
                     st.session_state['outputs'] = outputs
+                    st.session_state['one_hot_labels'] = one_hot_labels
 
                     # Séparer X et y
                     st.session_state['X'], st.session_state['y'] = split_input_output(st.session_state.data, 
                                                                                       st.session_state['inputs'], 
                                                                                       st.session_state['outputs'])
+                    
+                    if len(st.session_state['one_hot_labels']) > 0:
+                        st.session_state['X'] = pd.get_dummies(st.session_state['X'], columns=st.session_state['one_hot_labels'])
                     
                     # Créer des données scalées ( Créer les variables seesion_state 'scaler_X' et 'scaler_y')
                     st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X'], 
@@ -100,7 +121,7 @@ if dataset_choix == "Choisir un dataset personnel":
                                                                                                     test_size=0.15,
                                                                                                     random_state=3)
                     
-                    st.write('X scaler :', st.session_state['scaler_X'].mean_)
+                    
                     
                     # st.session_state['X_scaled']
                     #  st.session_state['y_scaled']
@@ -192,23 +213,10 @@ if dataset_choix == "Choisir un dataset personnel":
                         st.error("Transformation impossible ou déjà effectuée")
             
             ######################################
-            ##          Aperçu du dataset       ##
+            ##                EDA               ##
             ######################################
 
             with col1:
-                if st.session_state.data is not None:
-                    st.write("##")
-                    st.markdown('<p class="section">Aperçu</p>', unsafe_allow_html=True)
-                    st.write(st.session_state.data.head(50))
-                    st.write("##")
-
-            
-
-            ############################
-            ##         EDA            ##
-            ############################
-
-            with col2:
                 if st.session_state.data is not None:
                     st.write("##")
                     st.markdown('<p class="section">Caractéristiques</p>', unsafe_allow_html=True)
@@ -219,6 +227,17 @@ if dataset_choix == "Choisir un dataset personnel":
                         sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) * 100 / (
                                 st.session_state.data.shape[0] * st.session_state.data.shape[1]), 2),
                             ' % (', sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()), ')')
+
+            
+
+            ############################
+            ##         EDA            ##
+            ############################
+
+            with col2:
+                if st.session_state.data is not None:
+                    pass
+                    
                     
             ############################
             ##         Download       ##

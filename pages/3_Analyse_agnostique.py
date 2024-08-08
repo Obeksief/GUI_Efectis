@@ -57,6 +57,7 @@ with tab1:
             st.subheader('Description')
             st.write('Ici plusieurs modèles de machine learning vont tenter de prédire les sorties à partir des entrées. ')
             st.write('  Les modèles seront ensuite comparés pour déterminer le plus performant. ')
+            st.write('BLUBLUBLABLABLA')
     else : 
         st.error('Pas de données chargées')
 
@@ -69,9 +70,9 @@ with tab1:
 #########################################
 
 with tab2:
-    data1 = {'Modèles': [], 'MAPE_Erreurs': []}
+    data1 = {'Modèles': [], 'Erreur relative (en %)': []}
     data2 = {'Modèles': [], 'temps d\'entraînement': []}
-    data3 = {'Modèles': [], 'RMSE_Erreurs': []}
+    data3 = {'Modèles': [], 'Erreur RMSE': []}
 
     ### Choix des modèles à entraîner
     st.subheader('Choix des algorithmes')
@@ -176,9 +177,9 @@ with tab2:
 
                 # Ajout des erreurs dans les dictionnaires
                 data1['Modèles'].append(model)
-                data1['MAPE_Erreurs'].append(mape_err)
+                data1['Erreur relative (en %)'].append(mape_err)
                 data3['Modèles'].append(model)
-                data3['RMSE_Erreurs'].append(rmse_err)
+                data3['Erreur RMSE'].append(rmse_err)
                 
                 
 
@@ -186,7 +187,7 @@ with tab2:
        
 
       
-        
+        st.warning('Mémo à moi même : Mettre les formules MAPE et RMSE')
 
        
         df4 = pd.DataFrame(data3)
@@ -200,32 +201,32 @@ with tab2:
                        df2, 
                        on='Modèles')
         
-        st.dataframe(df4)
+        
         
 
 
         st.dataframe(df3,
                      hide_index=True)
         
-        st.subheader('Erreurs relatives des modèles sur l\'ensemble de test')
+        st.subheader('Erreurs en valeurs relatives des modèles sur l\'ensemble de test')
         ### Affichage graphique des erreurs relatives ( MAPE)
         fig1 = px.scatter(df1, 
                           x='Modèles', 
-                          y='MAPE_Erreurs', 
+                          y='Erreur relative (en %)', 
                           title='Erreur de chaque modèle (en %)', 
-                          color='MAPE_Erreurs', 
+                          color='Erreur relative (en %)', 
                           color_continuous_scale='RdYlGn_r')
         fig1.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
         st.plotly_chart(fig1)
 
-        st.subheader('Erreurs absolues des modèles sur l\'ensemble de test')
+        st.subheader('Erreurs en valeurs absolues des modèles sur l\'ensemble de test')
 
         ### Affichage graphique des erreurs absolues (RMSE)
         fig3 = px.scatter(df4, 
                           x='Modèles', 
-                          y='RMSE_Erreurs', 
+                          y='Erreur RMSE', 
                           title='Erreur de chaque modèle', 
-                          color='RMSE_Erreurs', 
+                          color='Erreur RMSE', 
                           color_continuous_scale='RdYlGn_r')
         fig3.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
         st.plotly_chart(fig3)           
@@ -251,13 +252,14 @@ with tab3:
     st.subheader('Télécharger un modèle')
 
     if st.button('Télécharger les modèles'):
-       
-        st.warning('Lors du téléchargement d\'un modèle, veuillez laisser le nom ou laisser en suffixe ')
-        st.error('Ou bien lire ce qui est écrit dasn le pickle model.type == MLPRegressor ?')
+      
         for i in range(len(st.session_state['liste_models'])):
             model_name = st.session_state['liste_models'][i]
             if model_name == 'Neural Network' or model_name == 'XGBoost' or model_name == 'CatBoost':
-                download_model_and_scaler(st.session_state[model_name],st.session_state['scaler_X'], st.session_state['scaler_y'], model_name)
+                download_model_and_scalers(st.session_state[model_name],
+                                           st.session_state['scaler_X'], 
+                                           st.session_state['scaler_y'], 
+                                           model_name)
             else :
                 download_model(st.session_state[model_name], model_name)
 
