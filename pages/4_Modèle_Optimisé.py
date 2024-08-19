@@ -19,9 +19,83 @@ import plotly.graph_objects as go
 import math
 import catboost as cb
 from sklearn.multioutput import MultiOutputRegressor
+import plotly.express as px
+import matplotlib.pyplot as plt
 
-### CatBoost related functions
+#############################################
+###        Variables de session           ###
+#############################################
+
+st.session_state['spinner_text_modele_optimise'] = 'Optimisation des hyperparamètres...'
+
+def get_MAPE_and_RMSE(y_true, X_test, scaler_y, model):
+
+    y_pred = model.predict(X_test)
+
+    ##################
+    ## Mono output  ##
+    ##################
+    if len(st.session_state['outputs']) == 1:
+              
+        # Test des modèles avec données mises à l'échelle
+        if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+            y_pred_inverse_scaled = scaler_y.inverse_transform(y_pred.reshape(-1, 1))
+            y_test_inverse_scaled = scaler_y.inverse_transform(y_true.reshape(-1, 1))
+
+                       
+            mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
+            rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
+
+        # Test des autres modèles sans mise à l'échelle
+        else:
+
+            mape_err = round(mean_absolute_percentage_error(y_true, y_pred) * 100, 2)
+            rmse_err = round(np.sqrt(mean_squared_error(y_true, y_pred)), 4)
+
+        return mape_err, rmse_err
+
+    ####################
+    ##  Multi output  ##
+    ####################
+    elif len(st.session_state['outputs']) > 1:
+                
+        # Test des modèles avec données mises à l'échelle
+        if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+            y_pred_inverse_scaled = scaler_y.inverse_transform(y_pred)
+            y_test_inverse_scaled = scaler_y.inverse_transform(y_true)
+
+            mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
+            rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
+
+            mape_err_rawvalues  = mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled, multioutput='raw_values') * 100
+            rmse_err_rawvalues  = np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled,multioutput='raw_values'))
+
+
+        # Test des autres modèles sans mise à l'échelle
+        else:
+            
+            mape_err = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100, 2)
+            rmse_err = round(np.sqrt(mean_squared_error(st.session_state['y_test'], y_pred)), 4)
+
+            mape_err_rawvalues  = mean_absolute_percentage_error(st.session_state['y_test'], y_pred, multioutput='raw_values') * 100
+            rmse_err_rawvalues  = np.sqrt(mean_squared_error(st.session_state['y_test'], y_pred, multioutput='raw_values'))
+
+        return mape_err, rmse_err, mape_err_rawvalues, rmse_err_rawvalues
+
+     
+    ##################
+    ##  No output   ##
+    ##################
+    else:
+        st.error('Pas de données de sortie')
+        return None, None
+            
+    
+##################################
+### CatBoost related functions ###
+##################################
 def objective_catboost(trial):
+
     ### Recehrche des hyperparamètres
     n_iterations = trial.suggest_int('n_iterations', st.session_state['range_n_iterations'][0], st.session_state['range_n_iterations'][1])
     learning_rate = trial.suggest_float('learning_rate', st.session_state['range_learning_rate'][0], st.session_state['range_learning_rate'][1])
@@ -32,7 +106,8 @@ def objective_catboost(trial):
                                     learning_rate=learning_rate,
                                     depth=depth,
                                     subsample=subsample,
-                                    random_state=123))
+                                    random_state=123,
+                                    logging_level='Silent'))
     
     score = cross_val_score(model, st.session_state['X_train_scaled'], st.session_state['y_train_scaled'], cv=3, scoring='neg_mean_squared_error')
 
@@ -42,21 +117,32 @@ def objective_catboost(trial):
                                     learning_rate=learning_rate,
                                     depth=depth,
                                     subsample=subsample,
-                                    random_state=123))
+                                    random_state=123,
+                                    logging_level='Silent'))
     model.fit(st.session_state['X_train_scaled'], st.session_state['y_train_scaled'], verbose=False)
 
     # Erreur MAPE et RMSE
-    mape_error = mean_absolute_percentage_error(st.session_state['y_test_scaled'], model.predict(st.session_state['X_test_scaled']))*100    
+    if len(st.session_state['outputs']) == 1:
+        mape_error, rmse_error = get_MAPE_and_RMSE(st.session_state['y_test_scaled'], st.session_state['X_test_scaled'], st.session_state['scaler_y'], model)
+    else:
+        mape_error, rmse_error, mape_error_rawvalues, rmse_error_rawvalues = get_MAPE_and_RMSE(st.session_state['y_test_scaled'], st.session_state['X_test_scaled'], st.session_state['scaler_y'], model)
 
-    y_pred_unscaled = st.session_state['scaler_y'].inverse_transform(model.predict(st.session_state['X_test_scaled']).reshape(-1,1))
-    y_true_unscaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
 
-    rmse_error = math.sqrt(mean_squared_error(y_true_unscaled, y_pred_unscaled))
-
-    ### Sauvegarde du modèle et les scores RMSE et MAPE
-    st.session_state['model'] = model
-    st.session_state['model_MAPE'] = mape_error
-    st.session_state['model_RMSE'] = rmse_error
+    ### Sauvegarde du meilleur modèle et les scores RMSE et MAPE
+    if trial.number == 0:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
+    if rmse_error < st.session_state['model_RMSE']:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
 
     ### Arrêt anticipé
     if mape_error < st.session_state['mape_tolerance']:
@@ -65,9 +151,10 @@ def objective_catboost(trial):
 
     ### Progress bar 
     temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
+    st.info(temps_chargement)
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement)
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
     
 
             
@@ -83,10 +170,9 @@ def launch_optim_catboost():
     st.session_state['start_time'] = time.time()
     ###
 
-    
-
-    with st.spinner('Optimisation des hyperparamètres...'):
+    with st.spinner(st.session_state['spinner_text_modele_optimise']):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
+        st.info(st.session_state['temps_max'])
         study.optimize(objective_catboost, n_trials=st.session_state['nb_trials'], timeout=st.session_state['temps_max'])
         ### Progress bar
         st.session_state['my_bar'].empty()
@@ -94,8 +180,9 @@ def launch_optim_catboost():
         st.session_state['best_params'] = study.best_params
         st.session_state['afficher_radar_param_optim'] = True
 
-
-### NN related functions
+############################
+### NN related functions ###
+############################
 
 def objective_nn(trial):  
     
@@ -115,7 +202,7 @@ def objective_nn(trial):
                             learning_rate_init = learning_rate_initial,
                             beta_1=0.9,
                             beta_2=0.999,
-                            max_iter=500,
+                            max_iter=1000,
                             validation_fraction=0.15,
                             early_stopping=True,
                             tol=0.0001,
@@ -134,26 +221,37 @@ def objective_nn(trial):
                             learning_rate_init = learning_rate_initial,
                             beta_1=0.9,
                             beta_2=0.999,
-                            max_iter=500,
+                            max_iter=1000,
                             validation_fraction=0.15,
                             early_stopping=True,
                             tol=0.0001,
                             n_iter_no_change=20)
+    
     model.fit(st.session_state['X_train_scaled'], st.session_state['y_train_scaled'])
 
 
     # Erreur MAPE et RMSE
-    mape_error = mean_absolute_percentage_error(st.session_state['y_test_scaled'], model.predict(st.session_state['X_test_scaled']))*100
+    # Erreur MAPE et RMSE
+    if len(st.session_state['outputs']) == 1:
+        mape_error, rmse_error = get_MAPE_and_RMSE(st.session_state['y_test_scaled'], st.session_state['X_test_scaled'], st.session_state['scaler_y'], model)
+    else:
+        mape_error, rmse_error, mape_error_rawvalues, rmse_error_rawvalues = get_MAPE_and_RMSE(st.session_state['y_test_scaled'], st.session_state['X_test_scaled'], st.session_state['scaler_y'], model)
 
-    y_pred_unscaled = st.session_state['scaler_y'].inverse_transform(model.predict(st.session_state['X_test_scaled']).reshape(-1,1))
-    y_true_unscaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
-
-    rmse_error = math.sqrt(mean_squared_error(y_true_unscaled, y_pred_unscaled))
-
-    ### Sauvegarde du modèle et les scores RMSE et MAPE
-    st.session_state['model'] = model
-    st.session_state['model_MAPE'] = mape_error
-    st.session_state['model_RMSE'] = rmse_error
+    ### Sauvegarde du meilleur modèle et les scores RMSE et MAPE
+    if trial.number == 0:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
+    if rmse_error < st.session_state['model_RMSE']:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
 
     ### Arrêt anticipé
     if mape_error < st.session_state['mape_tolerance']:
@@ -164,7 +262,7 @@ def objective_nn(trial):
     temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement)
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
     #
     return score.mean()
 
@@ -177,7 +275,7 @@ def launch_optim_nn():
     st.session_state['start_time'] = time.time()
     ###
 
-    with st.spinner('Optimisation des hyperparamètres...'):
+    with st.spinner(st.session_state['spinner_text_modele_optimise']):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
         study.optimize(objective_nn, n_trials=st.session_state['nb_trials'], timeout=st.session_state['temps_max'])
         ### Vider la barre de progression
@@ -185,8 +283,11 @@ def launch_optim_nn():
         ###
         st.session_state['best_params'] = study.best_params 
         st.session_state['afficher_radar_param_optim'] = True
-  
-### xgboost related functions
+
+##################################
+### xgboost related functions  ###
+##################################
+
 def objective_xgboost(trial):
     # Hyperparamètres à optimiser
     n_estimators = trial.suggest_int('n_estimators', st.session_state['range_nbr_estimateurs'][0], st.session_state['range_nbr_estimateurs'][1])
@@ -211,24 +312,39 @@ def objective_xgboost(trial):
                              min_child_weight=min_child_weight,
                              random_state=123))
     model.fit(st.session_state['X_train_scaled'], st.session_state['y_train_scaled'])
-    mape_error = mean_absolute_percentage_error(st.session_state['y_test_scaled'], model.predict(st.session_state['X_test_scaled']))*100
-    y_pred_unscaled = st.session_state['scaler_y'].inverse_transform(model.predict(st.session_state['X_test_scaled']).reshape(-1,1))
-    y_true_unscaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
-    rmse_error = math.sqrt(mean_squared_error(y_true_unscaled, y_pred_unscaled))
+    # Erreur MAPE et RMSE
+    if len(st.session_state['outputs']) == 1:
+        mape_error, rmse_error = get_MAPE_and_RMSE(st.session_state['y_test_scaled'], st.session_state['X_test_scaled'], st.session_state['scaler_y'], model)
+    else:
+        mape_error, rmse_error, mape_error_rawvalues, rmse_error_rawvalues = get_MAPE_and_RMSE(st.session_state['y_test_scaled'], st.session_state['X_test_scaled'], st.session_state['scaler_y'], model)
 
-    st.session_state['model'] = model
-    st.session_state['model_MAPE'] = mape_error
-    st.session_state['model_RMSE'] = rmse_error
+    ### Sauvegarde du meilleur modèle et les scores RMSE et MAPE
+    if trial.number == 0:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
+    if rmse_error < st.session_state['model_RMSE']:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
+
+    ### Arrêt anticipé
     if mape_error < st.session_state['mape_tolerance']:
         trial.study.stop()
         st.success('Arrêt anticipé')
 
-    ### Progress bar
+    ### Progress bar 
     temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement)
-    ###
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
+
     return score.mean()
 
 def launch_optim_xgboost():
@@ -240,7 +356,7 @@ def launch_optim_xgboost():
     st.session_state['start_time'] = time.time()
     ###
 
-    with st.spinner('Optimisation des hyperparamètres...'):
+    with st.spinner(st.session_state['spinner_text_modele_optimise']):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
         study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'], timeout=st.session_state['temps_max'])
         ### vider la barre de progression
@@ -252,47 +368,72 @@ def launch_optim_xgboost():
 #######################################                                                
 ### Random Forest related functions ###
 #######################################
+
 def objective_random_forest(trial):
-        ### Hyperparamètres à optimiser
-        n_estimators = trial.suggest_int('n_estimators', st.session_state['range_n_estimators'][0], st.session_state['range_n_estimators'][1])
-        max_depth = trial.suggest_int('max_depth', st.session_state['range_max_depth'][0], st.session_state['range_max_depth'][1])
-        min_samples_split = trial.suggest_int('min_samples_split', st.session_state['range_min_samples_split'][0], st.session_state['range_min_samples_split'][1])
-        min_samples_leaf = trial.suggest_int('min_samples_leaf', st.session_state['range_min_samples_leaf'][0], st.session_state['range_min_samples_leaf'][1])
+    ### Hyperparamètres à optimiser
+    n_estimators = trial.suggest_int('n_estimators', st.session_state['range_n_estimators'][0], st.session_state['range_n_estimators'][1])
+    max_depth = trial.suggest_int('max_depth', st.session_state['range_max_depth'][0], st.session_state['range_max_depth'][1])
+    min_samples_split = trial.suggest_int('min_samples_split', st.session_state['range_min_samples_split'][0], st.session_state['range_min_samples_split'][1])
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', st.session_state['range_min_samples_leaf'][0], st.session_state['range_min_samples_leaf'][1])
 
-        model = MultiOutputRegressor(RandomForestRegressor(n_estimators=n_estimators,
+    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=n_estimators,
                                     max_depth=max_depth,
                                     min_samples_split=min_samples_split,
                                     min_samples_leaf=min_samples_leaf,
                                     random_state=123))
 
-        ### Score MSE en cross-validation
-        score = cross_val_score(model, st.session_state['X_train'], st.session_state['y_train'], cv=3, scoring='neg_mean_squared_error')
+    ### Score MSE en cross-validation
+    score = cross_val_score(model, st.session_state['X_train'], st.session_state['y_train'], cv=3, scoring='neg_mean_squared_error')
 
-        model = MultiOutputRegressor(RandomForestRegressor(n_estimators=n_estimators,
+    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=n_estimators,
                                     max_depth=max_depth,
                                     min_samples_split=min_samples_split,
                                     min_samples_leaf=min_samples_leaf,
                                     random_state=123))
 
-        model.fit(st.session_state['X_train'], st.session_state['y_train'])
-        y_pred = model.predict(st.session_state['X_test'])
-        mape_error = mean_absolute_percentage_error(st.session_state['y_test'], y_pred)*100
-        rmse_error = math.sqrt(mean_squared_error(st.session_state['y_test'], y_pred))
+    model.fit(st.session_state['X_train'], st.session_state['y_train'])
 
+    # Erreur MAPE et RMSE
+    if len(st.session_state['outputs']) == 1:
+        mape_error, rmse_error = get_MAPE_and_RMSE(st.session_state['y_test'], st.session_state['X_test'], st.session_state['scaler_y'], model)
+    else:
+        mape_error, rmse_error, mape_error_rawvalues, rmse_error_rawvalues = get_MAPE_and_RMSE(st.session_state['y_test'], 
+                                                                                               st.session_state['X_test'], 
+                                                                                               st.session_state['scaler_y'], 
+                                                                                               model)
+        
+
+        
+
+    ### Sauvegarde du meilleur modèle et les scores RMSE et MAPE
+    if trial.number == 0:
         st.session_state['model'] = model
         st.session_state['model_MAPE'] = mape_error
         st.session_state['model_RMSE'] = rmse_error
-        if mape_error < st.session_state['mape_tolerance']:
-            trial.study.stop()
-            st.success('Arrêt anticipé')
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
+    if rmse_error < st.session_state['model_RMSE']:
+        st.session_state['model'] = model
+        st.session_state['model_MAPE'] = mape_error
+        st.session_state['model_RMSE'] = rmse_error
+        if len(st.session_state['outputs']) > 1:
+            st.session_state['model_MAPE_rawvalues'] = mape_error_rawvalues
+            st.session_state['model_RMSE_rawvalues'] = rmse_error_rawvalues
 
-        ### Progress bar
-        temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
-        if temps_chargement > 1:
-            temps_chargement = 1
-        st.session_state['my_bar'].progress(temps_chargement)
-        ###
-        return score.mean()
+    ### Arrêt anticipé
+    if mape_error < st.session_state['mape_tolerance']:
+        trial.study.stop()
+        st.success('Arrêt anticipé')
+
+    ### Progress bar 
+    temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
+    st.info(temps_chargement)
+    if temps_chargement > 1:
+        temps_chargement = 1
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
+
+    return score.mean()
 
 def launch_optim_random_forest():
         ### Initialisation Progress bar
@@ -315,8 +456,8 @@ def launch_optim_random_forest():
             st.session_state['afficher_radar_param_optim'] = True
         return True
 
-
 ### Utilitary functions
+
 def liste_puissance_de_deux(min, max):
     puissance = 1
     while puissance < min:
@@ -369,8 +510,9 @@ tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Entrainement d\'
 with tab1:
     
     col_1, col_2, col_3 = st.columns([1,1,1])
-
-    ### Hyperparamètres 
+    ########################
+    ### Hyperparamètres  ###
+    ########################
     st.session_state['nb_trials'] = 200
 
        
@@ -384,6 +526,8 @@ with tab1:
 
         with col_3:
             st.write('ttttest')
+    else :
+        st.info('Veuillez charger un jeu de données')
                 
                 
 ##############################################
@@ -400,8 +544,9 @@ with tab2:
     ### Choix uilisateur
     if 'afficher_radar_param_optim' not in st.session_state:
         st.session_state['afficher_radar_param_optim'] = False
-    st.session_state['temps_max'] = st.number_input('Temps maximum d\'entrainement (en secondes)', min_value=1, max_value=10000, value=300)
-    st.session_state['mape_tolerance'] = st.number_input('Arrêt anctipé, tolérance d\'eurreur en (%)', min_value=0, max_value=100, value=5)
+
+    st.session_state['temps_max'] = st.number_input('Temps maximum d\'entrainement (en secondes)', min_value=10, max_value=10000, value=300)
+    st.session_state['mape_tolerance'] = st.number_input('Arrêt anctipé, tolérance d\'eurreur en (%)', min_value=0, max_value=100, value=10)
 
     
      
@@ -418,26 +563,12 @@ with tab2:
             st.session_state['range_max_depth'] = [2, 15]
             st.session_state['range_eta'] = [0.001, 0.5]
             st.session_state['range_min_child_weight'] = [1,3]
-            st.session_state['nb_trials'] = 200
+          
             
             st.session_state['categories'] = ['nombre d\'estimateurs', 'profondeur maximale', 'taux d\'apprentissage', 'poids minimal des feuilles']
 
             if st.button('Valider les choix'):
                 launch_optim_xgboost()
-                best_param = st.session_state['best_params']
-                best_nb_estimators = best_param['n_estimators']
-                best_max_depth = best_param['max_depth']
-                best_eta = best_param['eta']
-                best_min_child_weight = best_param['min_child_weight']
-                ###### Faire une fonction
-                best_model = xgb.XGBRegressor(n_estimators=best_nb_estimators,
-                                             max_depth=best_max_depth,
-                                             eta=best_eta,
-                                             min_child_weight=best_min_child_weight,
-                                             random_state=123)
-                ######
-                best_model.fit(st.session_state['X_train_scaled'], st.session_state['y_train_scaled'])
-                st.session_state['model'] = best_model
                 st.session_state['type_model'] = 'XGBoost'
 
         with col_2:
@@ -486,19 +617,15 @@ with tab2:
     ##        Random Forest           ##
     ####################################
 
-    
-    
     elif model == 'Random Forest':
         col_1, col_2 = st.columns([1,1])
 
         with col_1:
-            ### A SUPPRIMER
-            st.error('Ce modèle ne fonctionne pas')
-            ##############
+           
 
             st.session_state['range_n_estimators'] = [10,500]
             st.session_state['range_max_depth'] = [1,50]
-            st.session_state['range_min_samples_split'] = [1,10]
+            st.session_state['range_min_samples_split'] = [2,10]
             st.session_state['range_min_samples_leaf'] = [1,10]
 
 
@@ -517,8 +644,7 @@ with tab2:
     ####################################
     ##        CatBoost                ##
     ####################################
-
-        
+       
     elif model == 'CatBoost':
         col_1, col_2 = st.columns([1,1])
     
@@ -528,24 +654,13 @@ with tab2:
             st.session_state['range_depth'] = [1, 15]
             st.session_state['range_subsample'] = [0.05, 1]
 
-            st.session_state['nb_trials'] = 200
+         
 
             st.session_state['categories'] = ['number of iterations', 'learning rate', 'depth', 'subsample']
 
             if st.button('Valiser choix'):
                 launch_optim_catboost()
-                best_param = st.session_state['best_params']
-                best_n_iterations = best_param['n_iterations']
-                best_learning_rate = best_param['learning_rate']
-                best_depth = best_param['depth']
-                best_subsample = best_param['subsample']
-                best_model = cb.CatBoostRegressor(iterations=best_n_iterations,
-                                               learning_rate=best_learning_rate,
-                                               depth=best_depth,
-                                               subsample=best_subsample,
-                                               random_state=123)
-                best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
-                st.session_state['model'] = best_model
+                
                 st.session_state['type_model'] = 'CatBoost'
 
                 
@@ -554,9 +669,74 @@ with tab2:
             if st.session_state['afficher_radar_param_optim']:
                 st.write(st.session_state['best_params'])
 
-    if 'model_MAPE' in st.session_state and "model_RMSE" in st.session_state:
+    else :
+        st.write('Veuillez choisir un modèle')
+
+    ##### Calcul sur l'ensemble test #####
+    #####       Mono output          #####
+
+    if st.session_state['afficher_radar_param_optim']:
         st.write(st.session_state['model_MAPE'],'%')
+        if len(st.session_state['outputs']) > 1:
+            st.write(st.session_state['model_MAPE_rawvalues'],'%')
         st.write(st.session_state['model_RMSE'])
+        if len(st.session_state['outputs']) > 1:
+            st.write(st.session_state['model_RMSE_rawvalues'])
+
+        ##### Graphe de parité Mono output #####
+        if len(st.session_state['outputs']) == 1:
+            if st.session_state['type_model'] == 'Neural_network' or st.session_state['type_model'] == 'XGBoost' or st.session_state['type_model'] == 'CatBoost':
+
+                y_test_scaled = np.array(st.session_state['y_test_scaled'])
+                y_test = st.session_state['scaler_y'].inverse_transform(y_test_scaled.reshape(-1,1)).flatten()
+                y_pred_scaled = np.array(st.session_state['model'].predict(st.session_state['X_test_scaled']))
+                y_pred = st.session_state['scaler_y'].inverse_transform(y_pred_scaled.reshape(-1,1)).flatten()
+
+            else:
+
+                y_test = st.session_state['y_test'].to_numpy().flatten()
+                y_pred = st.session_state['model'].predict(st.session_state['X_test']).flatten()
+
+
+            
+
+            # Tracer le graphe de parité
+            fig = plt.figure(figsize=(8, 8))
+            sns.scatterplot(x=y_test, y=y_pred, color='#1f77b4', alpha=0.7, edgecolor='k', s=80, marker="+")
+
+            # Tracer la ligne y = x pour référence
+            plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], color='red', linestyle='--', linewidth=1., label="Parité parfaite")
+
+            # Ajouter les labels et le titre
+            plt.xlabel('Valeurs réelles')
+            plt.ylabel('Valeurs prédites')
+            plt.title('Graphe de Parité: Valeurs Prédites vs Valeurs Réelles')
+
+            # Ajouter le quadrillage
+            plt.grid(True)
+
+            # Afficher le graphe
+            st.pyplot(fig)
+
+        elif len(st.session_state['outputs']) > 1:
+            pred = st.session_state['model'].predict(st.session_state['X_test_scaled'])
+            y_test = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
+            y_pred = st.session_state['scaler_y'].inverse_transform(pred)
+            y_columns = st.session_state['outputs']
+
+            for i in range(len(st.session_state['outputs'])):
+                fig = plt.figure(figsize=(8, 8))
+                sns.scatterplot(x=y_test[:, i], y=y_pred[:, i])
+                plt.plot([min(y_test[:, i]), max(y_test[:, i])], [min(y_test[:, i]), max(y_test[:, i])], color='red', linestyle='--')
+                plt.xlabel('Valeurs réelles')
+                plt.ylabel('Valeurs prédites')
+                plt.title(f'Graphe de parité pour la variable {y_columns[i]}')
+                plt.grid(True)
+                st.pyplot(fig)
+
+        else :
+            st.warning('Erreur lors de l\'affichage du graphe de parité')
+        
 
 ##############################################
 ###             Tab 3                      ###

@@ -54,15 +54,21 @@ if dataset_choix == "Choisir un dataset personnel":
             st.success('Fichier ' + st.session_state.file_details['FileName'] + ' chargé avec succès !')
             st.session_state['uploaded'] = 1
 
-            st.markdown('<p class="section">Aperçu</p>', unsafe_allow_html=True)
-            st.dataframe(st.session_state['data'].head())
-            st.write(' - Taille:', st.session_state['data'].shape)
+            
+            
             if sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) > 0:
                 st.warning("Attention, il y a des valeurs manquantes dans le dataset. Elles ont été retirées.") #retirés / retirées ?
                 df = st.session_state['data'].dropna()
                 st.session_state['data'] = df
-                st.write(' - Taille après suppression des valeurs manquantes:', st.session_state['data'].shape)
+                st.write(' - Taille après suppression des valeurs manquantes:', st.session_state['data'].shape[0], 'lignes')
                 #st.info(sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()))
+            else:
+                st.write(' - Taille:', st.session_state['data'].shape[0], 'lignes')
+
+            st.markdown('<p class="section">Aperçu du jeu de données</p>', unsafe_allow_html=True)
+            st.dataframe(st.session_state['data'].head())
+
+
 
             #####################################
             ##     Choix Inputs / Outputs      ##
@@ -85,9 +91,10 @@ if dataset_choix == "Choisir un dataset personnel":
                 ## A Supprimer ##################
                 #inputs = ['x1', 'x2', 'x3']
                 #outputs = ['y']
-                #st.write('Salut Kilian, valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas' )
-                st.info('Yo flo, tes variables d\'entrées sont x1 x2 et x3 et ta variable de sortie est y') 
-                ###########################
+                inputs = ['x1', 'x2', 'x3']
+                outputs = ['y1', 'y2', 'y3', 'y4']
+                st.write('Salut Kilian,pour les multi outputs valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas')
+                #################################
 
                 ##########################################
                 ##    Initialisation des variables      ##
@@ -217,17 +224,7 @@ if dataset_choix == "Choisir un dataset personnel":
             ######################################
 
             with col1:
-                if st.session_state.data is not None:
-                    st.write("##")
-                    st.markdown('<p class="section">Caractéristiques</p>', unsafe_allow_html=True)
-                    st.write(' - Taille:', st.session_state.data.shape)
-                    st.write(' - Nombre de valeurs:', st.session_state.data.shape[0] * st.session_state.data.shape[1])
-                    st.write(' - Type des colonnes:', st.session_state.data.dtypes.value_counts())
-                    st.write(' - Pourcentage de valeurs manquantes:', round(
-                        sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) * 100 / (
-                                st.session_state.data.shape[0] * st.session_state.data.shape[1]), 2),
-                            ' % (', sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()), ')')
-
+                pass
             
 
             ############################

@@ -155,34 +155,73 @@ with tab2:
             # st.session_state['scaler_y']
             
             ### Test des modèles
-            for model in st.session_state['liste_models']:
-                i = 0
-                # Test des modèles avec données mises à l'échelle
-                if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
-                    y_pred = st.session_state[model].predict(st.session_state['X_test_scaled'])
-                    y_pred_inverse_scaled = st.session_state['scaler_y'].inverse_transform(y_pred.reshape(-1, 1))
-                    y_test_inverse_scaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'].reshape(-1, 1))
+            if len(st.session_state['outputs']) == 1:
+                for model in st.session_state['liste_models']:
+                    i = 0
+                    # Test des modèles avec données mises à l'échelle
+                    if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+                        y_pred = st.session_state[model].predict(st.session_state['X_test_scaled'])
+                        y_pred_inverse_scaled = st.session_state['scaler_y'].inverse_transform(y_pred.reshape(-1, 1))
+                        y_test_inverse_scaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'].reshape(-1, 1))
 
-                    
-                    mape_err = round(mean_absolute_percentage_error(st.session_state['y_test_scaled'], y_pred) * 100, 2)
-                    rmse_err = round(root_mean_squared_error(st.session_state['y_test_scaled'], y_pred), 4) 
-                    mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
-                    rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
+                       
+                        mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
+                        rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
 
-                # Test des autres modèles
-                else:
-                    y_pred = st.session_state[model].predict(st.session_state['X_test'])
-                    mape_err = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100, 2)
-                    rmse_err = round(np.sqrt(mean_squared_error(st.session_state['y_test'], y_pred)), 4)
+                    # Test des autres modèles
+                    else:
+                        y_pred = st.session_state[model].predict(st.session_state['X_test'])
+                        mape_err = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100, 2)
+                        rmse_err = round(np.sqrt(mean_squared_error(st.session_state['y_test'], y_pred)), 4)
 
-                # Ajout des erreurs dans les dictionnaires
-                data1['Modèles'].append(model)
-                data1['Erreur relative (en %)'].append(mape_err)
-                data3['Modèles'].append(model)
-                data3['Erreur RMSE'].append(rmse_err)
+                    # Ajout des erreurs dans les dictionnaires
+                    data1['Modèles'].append(model)
+                    data1['Erreur relative (en %)'].append(mape_err)
+                    data3['Modèles'].append(model)
+                    data3['Erreur RMSE'].append(rmse_err)
+
+            elif len(st.session_state['outputs']) > 1:
+                data5 = {'Modèles': [], 'Erreur relative par output (en %)': [], 'Erreur RMSE par output': []}
+                
+                for model in st.session_state['liste_models']:
+                    # Test des modèles avec données mises à l'échelle
+                    if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+                        y_pred = st.session_state[model].predict(st.session_state['X_test_scaled'])
+                        y_pred_inverse_scaled = st.session_state['scaler_y'].inverse_transform(y_pred)
+                        y_test_inverse_scaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
+
+                        mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
+                        rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
+
+       
+                        mape_err_rawvalues  = mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled, multioutput='raw_values') * 100
+                        rmse_err_rawvalues  = np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled,multioutput='raw_values'))
+
+
+                    # Test des autres modèles
+                    else:
+                        y_pred = st.session_state[model].predict(st.session_state['X_test'])
+                        mape_err = round(mean_absolute_percentage_error(st.session_state['y_test'], y_pred) * 100, 2)
+                        rmse_err = round(np.sqrt(mean_squared_error(st.session_state['y_test'], y_pred)), 4)
+
+                        mape_err_rawvalues  = mean_absolute_percentage_error(st.session_state['y_test'], y_pred, multioutput='raw_values') * 100
+                        rmse_err_rawvalues  = np.sqrt(mean_squared_error(st.session_state['y_test'], y_pred, multioutput='raw_values'))
+
+                    # Ajout des erreurs dans les dictionnaires
+                    data1['Modèles'].append(model)
+                    data1['Erreur relative (en %)'].append(mape_err)
+                    data3['Modèles'].append(model)
+                    data3['Erreur RMSE'].append(rmse_err)
+
+                    data5['Modèles'].append(model)
+                    data5['Erreur relative par output (en %)'].append(mape_err_rawvalues)
+                    data5['Erreur RMSE par output'].append(rmse_err_rawvalues)
+
+            else:
+                st.error('Pas de données de sortie')
+        
                 
                 
-
 
        
 
@@ -243,6 +282,44 @@ with tab2:
                       color_continuous_scale='RdYlGn_r')
 
         st.plotly_chart(fig2)
+
+        if len(st.session_state['outputs']) > 1:
+            df_erreurs = pd.DataFrame(data5)
+            # Définir le nombre d'outputs
+            n_outputs = len(df_erreurs['Erreur relative par output (en %)'][0])
+
+            # Création des sous-graphes
+            fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+            # Erreur relative par output
+            for idx, row in df_erreurs.iterrows():
+                axes[0].bar(np.arange(n_outputs) + idx*0.25, row['Erreur relative par output (en %)'], width=0.25, label=row['Modèles'])
+
+            # Paramètres du graphique
+            axes[0].set_title("Erreur Relative par Output (%)")
+            axes[0].set_xlabel("Output")
+            axes[0].set_ylabel("Erreur (%)")
+            axes[0].set_xticks(np.arange(n_outputs))
+            axes[0].set_xticklabels([f'Output {i+1}' for i in range(n_outputs)])
+            axes[0].legend()
+
+            # Erreur RMSE par output
+            for idx, row in df_erreurs.iterrows():
+                axes[1].bar(np.arange(n_outputs) + idx*0.25, row["Erreur RMSE par output"], width=0.25, label=row['Modèles'])
+
+            # Paramètres du graphique
+            axes[1].set_title("Erreur RMSE par Output")
+            axes[1].set_xlabel("Output")
+            axes[1].set_ylabel("RMSE")
+            axes[1].set_xticks(np.arange(n_outputs))
+            axes[1].set_xticklabels([f'Output {i+1}' for i in range(n_outputs)])
+            axes[1].legend()
+
+            # Ajuster la mise en page
+            plt.tight_layout()
+
+            # Afficher le graphique
+            st.pyplot(fig)
 
 #########################################
 ####            Tab 3                ####
