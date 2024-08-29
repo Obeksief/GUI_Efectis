@@ -519,7 +519,10 @@ with tab1:
     if 'data' in st.session_state and st.session_state['data'] is not None:
         with col_1:
             st.subheader('Données d\'entrées ')
-            st.dataframe(st.session_state['data'][st.session_state['inputs']])
+            if st.session_state['one_hot_labels'] is not None:
+                st.dataframe(st.session_state['data'][st.session_state['inputs'] + st.session_state['one_hot_labels']])
+            else:
+                st.dataframe(st.session_state['data'][st.session_state['inputs']])
         with col_2:
             st.subheader('Données de sorties ')
             st.dataframe(st.session_state['data'][st.session_state['outputs']])

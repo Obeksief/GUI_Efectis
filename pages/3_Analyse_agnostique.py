@@ -23,6 +23,21 @@ import seaborn as sns
 from utils import *
 from ut import *
 
+def download_model_and_scalers_and_encoder(model,scaler_X, scaler_y, encoder, file_name):
+    file = (model, scaler_X, scaler_y, encoder)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+def download_model_and_encoder(model, encoder, file_name):
+    file = (model, encoder)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+
 
 
 st.title('Modeles')
@@ -31,6 +46,7 @@ tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Choix des modèl
 
 display_features = False
 entrainement = False
+st.session_state['models trained'] = False
 
 
 
@@ -45,10 +61,14 @@ with tab1:
     ##    Aperçu des données       ##
     #################################
     col_1, col_2, col_3 = st.columns([1,1,1])
+
     if 'data' in st.session_state and st.session_state['data'] is not None:
         with col_1:
             st.subheader('Données d\'entrées ')
-            st.dataframe(st.session_state['data'][st.session_state['inputs']])
+            if st.session_state['one_hot_labels'] is not None:
+                st.dataframe(st.session_state['data'][st.session_state['inputs'] + st.session_state['one_hot_labels']])
+            else:
+                st.dataframe(st.session_state['data'][st.session_state['inputs']])
         with col_2:
             st.subheader('Données de sorties ')
             st.dataframe(st.session_state['data'][st.session_state['outputs']])
@@ -70,6 +90,8 @@ with tab1:
 #########################################
 
 with tab2:
+    col_1, col_2 = st.columns([1,1])
+    
     data1 = {'Modèles': [], 'Erreur relative (en %)': []}
     data2 = {'Modèles': [], 'temps d\'entraînement': []}
     data3 = {'Modèles': [], 'Erreur RMSE': []}
@@ -91,7 +113,6 @@ with tab2:
         
 
         ### Entraînement des modèles
-        
         with st.spinner('Entraînement des modèles...'):
             # Calcul du temps d'entrainement
             st.session_state['times']= []
@@ -122,6 +143,8 @@ with tab2:
                 # Modèle entraîné avec succès
                 st.info(model + ' entraîné avec succès')
             st.success('Tous les modèles ont été entraînés avec succès')
+            ### Booléen pour accéder aux téléchargements
+            st.session_state['models trained'] = True
 
             for model in st.session_state['liste_models']:
                 # Ajout des temps d'entrainement dans le dictionnaire
@@ -240,10 +263,6 @@ with tab2:
                        df2, 
                        on='Modèles')
         
-        
-        
-
-
         st.dataframe(df3,
                      hide_index=True)
         
@@ -296,11 +315,11 @@ with tab2:
                 axes[0].bar(np.arange(n_outputs) + idx*0.25, row['Erreur relative par output (en %)'], width=0.25, label=row['Modèles'])
 
             # Paramètres du graphique
-            axes[0].set_title("Erreur Relative par Output (%)")
-            axes[0].set_xlabel("Output")
+            axes[0].set_title("Erreur Relative par Output (en %)")
+            axes[0].set_xlabel("Outputs")
             axes[0].set_ylabel("Erreur (%)")
             axes[0].set_xticks(np.arange(n_outputs))
-            axes[0].set_xticklabels([f'Output {i+1}' for i in range(n_outputs)])
+            axes[0].set_xticklabels([_ for _ in st.session_state['outputs']])
             axes[0].legend()
 
             # Erreur RMSE par output
@@ -309,10 +328,11 @@ with tab2:
 
             # Paramètres du graphique
             axes[1].set_title("Erreur RMSE par Output")
-            axes[1].set_xlabel("Output")
+            axes[1].set_xlabel("Outputs")
             axes[1].set_ylabel("RMSE")
             axes[1].set_xticks(np.arange(n_outputs))
-            axes[1].set_xticklabels([f'Output {i+1}' for i in range(n_outputs)])
+            #axes[1].set_xticklabels([f'Output {i+1}' for i in range(n_outputs)])
+            axes[1].set_xticklabels([_ for _ in st.session_state['outputs']])
             axes[1].legend()
 
             # Ajuster la mise en page
@@ -321,6 +341,9 @@ with tab2:
             # Afficher le graphique
             st.pyplot(fig)
 
+        if st.button('Affciher le grahpe de parité d\'un modèle'):
+            st.write('TEST')
+            
 #########################################
 ####            Tab 3                ####
 #########################################
@@ -332,13 +355,29 @@ with tab3:
       
         for i in range(len(st.session_state['liste_models'])):
             model_name = st.session_state['liste_models'][i]
-            if model_name == 'Neural Network' or model_name == 'XGBoost' or model_name == 'CatBoost':
-                download_model_and_scalers(st.session_state[model_name],
-                                           st.session_state['scaler_X'], 
-                                           st.session_state['scaler_y'], 
-                                           model_name)
-            else :
-                download_model(st.session_state[model_name], model_name)
 
+            if len(st.session_state['one_hot_labels']) > 0:
+                if model_name == 'Neural Network' or model_name == 'XGBoost' or model_name == 'CatBoost':
+                    download_model_and_scalers_and_encoder(st.session_state[model_name],
+                                            st.session_state['scaler_X'], 
+                                            st.session_state['scaler_y'], 
+                                            st.session_state['encoder'],
+                                            model_name)
+                else :
+                    download_model_and_encoder(st.session_state[model_name],
+                                            st.session_state['encoder'],
+                                                model_name)
+
+            elif len(st.session_state['one_hot_labels']) == 0:
+                if model_name == 'Neural Network' or model_name == 'XGBoost' or model_name == 'CatBoost':
+                    download_model_and_scalers(st.session_state[model_name],
+                                            st.session_state['scaler_X'], 
+                                            st.session_state['scaler_y'], 
+                                            model_name)
+                else :
+                    download_model(st.session_state[model_name], model_name)
+
+            else:
+                st.error('erreur ')
 
 

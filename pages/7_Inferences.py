@@ -65,11 +65,19 @@ with tab1:
             output = pickle.loads(model_bytes)
        
             if (type(output)==tuple):
-                
-         
+                # Si il y a le OneHotEncoder dans le tuple
+                if output[-1].__class__.__name__ == 'OneHotEncoder':
+                    st.session_state['reconstructed_ohe'] = output[-1]
+                else :
+                    st.session_state['reconstructed_ohe'] = None
+            
                 if type(output[0]).__name__ == 'MLPRegressor':
                     model_name = 'MLPRegressor'
+                elif type(output[0]).__name__ == 'Sequential':
+                    model_name = 'Sequential'
+                    st.info('Modèle de type Sequential')
                 else :
+                    st.info(type(output[0]).__name__ )
                     model_name = type(output[0].estimators_[0]).__name__
                 
                 st.session_state['reconstructed_model'] = output[0]
@@ -101,17 +109,36 @@ with tab1:
 ##################################
 ###          Tab 2              ##
 ##################################
+def get_labeled_data(input_data, encoder):
+    col_to_encode = input_data[encoder.feature_names_in_]
+    X_encoded = encoder.transform(col_to_encode)
+    X_encoded = X_encoded.toarray()
+    return X_encoded
             
 with tab2:
     if st.button('Démarrer l\'inférence'):
 
 
         if (type(output)==tuple):
+
+            ### Encodage des variables catégorielles ###
+            if st.session_state['reconstructed_ohe'] is not None:
+                st.session_state['X_ohe'] = get_labeled_data(st.session_state['new_data'],st.session_state['reconstructed_ohe'])
+                st.dataframe(pd.DataFrame(st.session_state['X_ohe']))
+                # Retrirer les colonnes catégorielles
+                st.session_state['new_data_num'] = st.session_state['new_data'].drop(st.session_state['reconstructed_ohe'].feature_names_in_, axis=1)
+            else:
+                st.session_state['new_data_num'] = st.session_state['new_data']
+
             ### Mise à l'échelle des données d'entrée ###
-            st.session_state['new_data_scaled'] = get_scaled_data(st.session_state['new_data'],st.session_state['reconstructed_scaler_X'])
+            st.session_state['new_data_scaled'] = get_scaled_data(st.session_state['new_data_num'],st.session_state['reconstructed_scaler_X'])
 
             ### Prédiction ###
-            prediction_scaled = st.session_state['reconstructed_model'].predict(st.session_state['new_data_scaled'])
+            if st.session_state['reconstructed_ohe'] is not None:
+                st.session_state['new_data_pred'] = np.concatenate((st.session_state['new_data_scaled'],st.session_state['X_ohe']),axis=1)
+            else:
+                st.session_state['new_data_pred'] = st.session_state['new_data_scaled']
+            prediction_scaled = st.session_state['reconstructed_model'].predict(st.session_state['new_data_pred'])
             st.info(f"prediction_scaled shape: {prediction_scaled.ndim}")
 
             ### Mise à l'échelle inverse des prédictions ###

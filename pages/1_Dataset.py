@@ -1,17 +1,22 @@
 import streamlit as st
 import pandas as pd
-from uti import *
+import numpy as np
+from sklearn.preprocessing import OneHotEncoder
+from ut import *
 
 def split_input_output(input_data, inputs, outputs):
     X = input_data[inputs]
     y = input_data[outputs]
     return X, y
 
+def get_labeled_data(input_data, labels):
+    return input_data[labels]
+
 st.set_page_config(layout="wide", page_title="Dataset")
 st.header("Choix des données d\'entrainement")
             
-if 'data' in st.session_state:
-        del st.session_state.data
+#if 'data' in st.session_state:
+        #del st.session_state.data
 
 if 'data' not in st.session_state:
     st.session_state.data = None
@@ -20,8 +25,8 @@ if "drop_col" not in st.session_state:
     st.session_state.drop_col = ""
 if "col_to_time" not in st.session_state:
     st.session_state.col_to_time = ""
-#if "col_to_float_money" not in st.session_state:
-    #st.session_state.col_to_float_money = ""
+if "col_to_float_money" not in st.session_state:
+    st.session_state.col_to_float_money = ""
 if "col_to_float_coma" not in st.session_state:
     st.session_state.col_to_float_coma = ""
 if "separateur" not in st.session_state:
@@ -48,10 +53,11 @@ if dataset_choix == "Choisir un dataset personnel":
             st.session_state['data'] = pd.read_excel(uploaded_file)
         st.session_state['uploaded'] = 0  
         if st.session_state['data'] is not None:
-            st.session_state.file_details = {"FileName": uploaded_file.name,
-                                             "FileType": uploaded_file.type,
-                                             "FileSize": uploaded_file.size}
-            st.success('Fichier ' + st.session_state.file_details['FileName'] + ' chargé avec succès !')
+            st.session_state.file_details = {
+                                             "FileType": st.session_state['data'].attrs,
+                                             "FileSize": st.session_state['data'].size
+                                             }
+            st.success('Fichier chargé avec succès !')
             st.session_state['uploaded'] = 1
 
             
@@ -80,20 +86,26 @@ if dataset_choix == "Choisir un dataset personnel":
                 ### Récupérer les labels des input et outputs 
                 features = st.session_state['data'].columns
                 liste = [str(_) for _ in features]
+
+                st.subheader("Choix des variables d'entrées")
                 # inputs
-                inputs = st.multiselect(label="Quelles sont les variables d\'entrées:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
-                # outputs
-                outputs = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
+                inputs = st.multiselect(label="Quelles sont les variables quantitatives:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
+                
                 # Variables qualitatives
                 if inputs is not None:
-                    one_hot_labels = st.multiselect(label="Quelles sont les variables qualitatives ?", options=inputs, placeholder='Laissez vide si aucune')
+                    one_hot_labels = st.multiselect(label="Quelles sont les variables qualitatives ?", options=liste, placeholder='Laissez vide si aucune')
+
+                    
+                st.subheader("Choix des variables de sorties")        
+                # outputs
+                outputs = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
 
                 ## A Supprimer ##################
                 #inputs = ['x1', 'x2', 'x3']
                 #outputs = ['y']
-                inputs = ['x1', 'x2', 'x3']
-                outputs = ['y1', 'y2', 'y3', 'y4']
-                st.write('Salut Kilian,pour les multi outputs valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas')
+                #inputs = ['x1', 'x2', 'x3']
+                #outputs = ['y1', 'y2', 'y3', 'y4']
+                #st.write('Salut Kilian,pour les multi outputs valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas')
                 #################################
 
                 ##########################################
@@ -104,20 +116,44 @@ if dataset_choix == "Choisir un dataset personnel":
                     
                     st.session_state['inputs'] = inputs
                     st.session_state['outputs'] = outputs
+                    
                     st.session_state['one_hot_labels'] = one_hot_labels
+                    st.info('one hot labels :'+str(st.session_state['one_hot_labels']))
 
                     # Séparer X et y
                     st.session_state['X'], st.session_state['y'] = split_input_output(st.session_state.data, 
                                                                                       st.session_state['inputs'], 
                                                                                       st.session_state['outputs'])
                     
-                    if len(st.session_state['one_hot_labels']) > 0:
-                        st.session_state['X'] = pd.get_dummies(st.session_state['X'], columns=st.session_state['one_hot_labels'])
+
                     
                     # Créer des données scalées ( Créer les variables seesion_state 'scaler_X' et 'scaler_y')
                     st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X'], 
                                                                                             st.session_state['y'])
 
+                    def get_labeled_data_fit_transform(input_data, labels):
+                        encoder = OneHotEncoder()
+                        X_encoded = encoder.fit_transform(input_data[labels])
+                        X_encoded = X_encoded.toarray()
+                        l = []
+                        for _ in encoder.categories_:
+                            l.append(np.array(_))
+
+                        col = np.concatenate(l, axis=0)
+                        X_encoded_df = pd.DataFrame(X_encoded, columns=col)
+                        st.session_state['encoder'] = encoder
+                        return X_encoded_df
+
+                    
+                    
+
+                    if len(st.session_state['one_hot_labels']) > 0:
+                        st.session_state['X_labeled'] = get_labeled_data_fit_transform(st.session_state['data'], st.session_state['one_hot_labels'])
+                        st.session_state['X_scaled'] = np.concatenate((st.session_state['X_scaled'], st.session_state['X_labeled']), axis=1)
+                        st.session_state['X'] = np.concatenate((st.session_state['X'], st.session_state['X_labeled']), axis=1)
+
+
+                    
                     X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], 
                                                                         st.session_state['y'], 
                                                                         test_size=0.15, 
