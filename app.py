@@ -14,11 +14,29 @@ def main():
     st.markdown('### Expliques le projet et les pages gros nigaud:')
     st.write('-- Description du projet')
     st.write('-- Indications ')
-    st.write('-- Importation du jeu de données ( 1ere étape)')
+    st.header('Pages')
+    
+    ### Import data
+    st.subheader('Importation du jeu de données')
+    st.write('-- Première étape si l\'on veut entraîner un modèle par la suite : il s\'agit d\'importer le jeu de données que l\'on souhaite utiliser sur la plateforme' )
+
+    ### EDA
+    st.subheader('EDA')
     st.write('-- EDA')
+
+    ### Dummy model
+    st.subheader(' Dummy Model')
     st.write('-- Dummy Model, modèles  (2eme étape)')
+
+    ### Model Optimisé using Optuna
+    st.subheader(' Model Optimisé')
     st.write('-- Model Optimisé')
+    
+    ### Sandbox
+    st.subheader(' Sandbox')
     st.write('-- Sandbox')
+
+    ### Inférence
     st.write('-- Inférences')
     st.write('-- Support')
 

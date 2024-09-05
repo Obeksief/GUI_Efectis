@@ -164,6 +164,33 @@ def download_model_and_encoder(model, encoder, file_name):
     href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
     st.markdown(href, unsafe_allow_html=True)
 
+def download_model_and_scalers_and_labels(model, scaler_X, scaler_Y, input_labels, output_labels, file_name):
+    file = (model, scaler_X, scaler_Y, input_labels, output_labels)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+def download_model_and_scalers_and_encoder_and_labels(model,scaler_X, scaler_y, encoder,input_labels, output_labels, file_name):
+    file = (model, scaler_X, scaler_y, encoder, input_labels, output_labels)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+def download_model_and_encoder_and_labels(model, encoder, input_labels, output_labels, file_name):
+    file = (model, encoder, input_labels, output_labels)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+def download_model_and_labels(model, input_labels, output_labels, file_name):
+    file = (model, input_labels, output_labels)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
 ######################################################################
 ##      SandBox - Entraînement d'un modèle personnalisé             ##
@@ -419,7 +446,7 @@ def launch_optim_nn():
         #############
         st.session_state['best_params'] = study.best_params
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-        st.session_state['afficher_radar_param_optim'] = True
+    
   
 ### xgboost related functions
 def get_radar_xgboost_optim():
@@ -512,20 +539,13 @@ def objective_xgboost(trial):
     eta = trial.suggest_float('eta', st.session_state['range_eta'][0], st.session_state['range_eta'][1])
     min_child_weight = trial.suggest_int('min_child_weight', st.session_state['range_min_child_weight'][0]  , st.session_state['range_min_child_weight'][1])
 
-    model = xgb.XGBRegressor(n_estimators=n_estimators,
+    model = MultiOutputRegressor(xgb.XGBRegressor(n_estimators=n_estimators,
                              max_depth=max_depth,
                              eta=eta,
                              min_child_weight=min_child_weight,
-                             random_state=123)
+                             random_state=123))
 
-    score = cross_val_score(model, st.session_state['X_train'], st.session_state['y_train'], cv=3, scoring='neg_mean_squared_error')
-
-    mape_error = mean_absolute_percentage_error(st.session_state['y_test'], model.predict(st.session_state['X_test']))*100
-    
-
-    if mape_error < st.session_state['mape_tolerance']:
-        trial.study.stop()
-        st.success('Arrêt anticipé')
+    score = cross_val_score(model, st.session_state['X_train_scaled'], st.session_state['y_train_scaled'], cv=3, scoring='neg_mean_squared_error')
 
     ############# Progress bar test
     st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
@@ -552,7 +572,7 @@ def launch_optim_xgboost():
                         #############
                         st.session_state['best_params'] = study.best_params
                         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-                        st.session_state['afficher_radar_param_optim'] = True
+                    
 
 
 ### Random Forest related functions
@@ -562,13 +582,14 @@ def objective_random_forest(trial):
     min_samples_split = trial.suggest_int('min_samples_split', st.session_state['range_min_samples_split'][0], st.session_state['range_min_samples_split'][1])
     min_samples_leaf = trial.suggest_int('min_samples_leaf', st.session_state['range_min_samples_leaf'][0], st.session_state['range_min_samples_leaf'][1])
 
-    model = RandomForestRegressor(n_estimators=n_estimators,
+    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=n_estimators,
                                   max_depth=max_depth,
                                   min_samples_split=min_samples_split,
                                   min_samples_leaf=min_samples_leaf,
-                                  random_state=123)
+                                  random_state=123))
 
     score = cross_val_score(model, st.session_state['X'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
+
 
     ############# Progress bar test
     st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
@@ -586,7 +607,6 @@ def launch_optim_random_forest():
     st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
     st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split']
     st.session_state['range_min_samples_leaf'] = st.session_state['slider_range_min_samples_leaf']
-    st.session_state['nb_trials'] = nb_trial
 
     with st.spinner('Optimizing hyperparameters...'):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
@@ -596,8 +616,7 @@ def launch_optim_random_forest():
         #############
         st.session_state['best_params'] = study.best_params
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-        st.session_state['afficher_radar_param_optim'] = True
-
+        
 def get_radar_random_forest_slider():
     min_a = st.session_state['slider_range_n_estimators'][0]
     max_a = st.session_state['slider_range_n_estimators'][1]
@@ -761,13 +780,14 @@ def objective_catboost(trial):
     depth = trial.suggest_int('depth', st.session_state['range_depth'][0], st.session_state['range_depth'][1])
     subsample = trial.suggest_float('subsample', st.session_state['range_subsample'][0], st.session_state['range_subsample'][1])
 
-    model = cb.CatBoostRegressor(iterations=n_iterations,
+    model = MultiOutputRegressor(cb.CatBoostRegressor(iterations=n_iterations,
                               learning_rate=learning_rate,
                               depth=depth,
                               subsample=subsample,
-                              random_state=123)
+                              random_state=123))
 
-    score = cross_val_score(model, st.session_state['X'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error', verbose=0)
+    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_squared_error', verbose=0)
+
 
     ############# Progress bar test
     st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
@@ -795,7 +815,6 @@ def launch_optim_catboost():
         ##
         st.session_state['best_params'] = study.best_params
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-        st.session_state['afficher_radar_param_optim'] = True
 
 
 ### Utilitary functions

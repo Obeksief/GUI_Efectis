@@ -154,7 +154,7 @@ def objective_catboost(trial):
     st.info(temps_chargement)
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number+1}')
     
 
             
@@ -262,7 +262,7 @@ def objective_nn(trial):
     temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number+1}')
     #
     return score.mean()
 
@@ -343,7 +343,7 @@ def objective_xgboost(trial):
     temps_chargement = (time.time()-st.session_state['start_time'])/st.session_state['temps_max']
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number+1}')
 
     return score.mean()
 
@@ -431,7 +431,7 @@ def objective_random_forest(trial):
     st.info(temps_chargement)
     if temps_chargement > 1:
         temps_chargement = 1
-    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number}')
+    st.session_state['my_bar'].progress(temps_chargement, text=f'Calcul en cours. Veuillez patienter. Essai n°{trial.number+1}')
 
     return score.mean()
 
@@ -502,6 +502,7 @@ tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Entrainement d\'
 
 #st.session_state['Model_opt'] = str_model
 
+st.session_state['nb_trials'] = 100
 
 ##############################################
 ###             Tab 1                      ###
@@ -510,12 +511,7 @@ tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Entrainement d\'
 with tab1:
     
     col_1, col_2, col_3 = st.columns([1,1,1])
-    ########################
-    ### Hyperparamètres  ###
-    ########################
-    st.session_state['nb_trials'] = 200
 
-       
     if 'data' in st.session_state and st.session_state['data'] is not None:
         with col_1:
             st.subheader('Données d\'entrées ')
@@ -720,11 +716,15 @@ with tab2:
 
             # Afficher le graphe
             st.pyplot(fig)
-
+        ##### Graphe de parité Multi output #####
         elif len(st.session_state['outputs']) > 1:
-            pred = st.session_state['model'].predict(st.session_state['X_test_scaled'])
-            y_test = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
-            y_pred = st.session_state['scaler_y'].inverse_transform(pred)
+            if st.session_state['type_model'] == 'Random Forest':
+                y_pred = st.session_state['model'].predict(st.session_state['X_test'])
+                y_test = st.session_state['y_test'].to_numpy()
+            else:
+                pred = st.session_state['model'].predict(st.session_state['X_test_scaled'])
+                y_test = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'])
+                y_pred = st.session_state['scaler_y'].inverse_transform(pred)
             y_columns = st.session_state['outputs']
 
             for i in range(len(st.session_state['outputs'])):
@@ -752,13 +752,39 @@ with tab3:
         if st.session_state['afficher_radar_param_optim']:
         
             st.write(st.session_state['type_model'])
-            if st.session_state['type_model'] == 'Neural_network' or st.session_state['type_model'] == 'XGBoost' or st.session_state['type_model'] == 'CatBoost':
-                st.write('yo la couille')
-                download_model_and_scalers(st.session_state['model'],
+
+            if len(st.session_state['one_hot_labels']) > 0:
+                if st.session_state['type_model'] == 'Neural_network' or st.session_state['type_model'] == 'XGBoost' or st.session_state['type_model'] == 'CatBoost':
+                
+                    download_model_and_scalers_and_encoder_and_labels(st.session_state['model'],
+                                           st.session_state['scaler_X'], 
+                                           st.session_state['scaler_y'],
+                                           st.session_state['encoder'], 
+                                             st.session_state['all_inputs'],
+                                                st.session_state['outputs'],
+                                           st.session_state['type_model'])
+                else:
+                    
+                    download_model_and_encoder_and_labels(st.session_state['model'],st.session_state['encoder'], st.session_state['type_model'])
+
+            elif len(st.session_state['one_hot_labels']) == 0:
+                if st.session_state['type_model'] == 'Neural_network' or st.session_state['type_model'] == 'XGBoost' or st.session_state['type_model'] == 'CatBoost':
+                
+                    download_model_and_scalers_and_labels(st.session_state['model'],
                                            st.session_state['scaler_X'], 
                                            st.session_state['scaler_y'], 
+                                        
+                                             st.session_state['all_inputs'],
+                                                st.session_state['outputs'],
                                            st.session_state['type_model'])
-            else:
-                st.write('flubim')
-                download_model(st.session_state['model'], st.session_state['type_model'])
+                else:
+                    
+                    download_model_and_labels(st.session_state['model'],
+                                              st.session_state['all_inputs'],
+                                                st.session_state['outputs'],
+                                                  st.session_state['type_model'])
+                
+            else :
+                st.error('erreur')
 
+        
