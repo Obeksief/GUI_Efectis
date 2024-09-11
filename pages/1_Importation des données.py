@@ -46,11 +46,19 @@ dataset_choix = "Choisir un dataset personnel"
 if dataset_choix == "Choisir un dataset personnel":
     with col1_1:
 
-        uploaded_file = st.file_uploader("", type=['xlsx'])
+        uploaded_file = st.file_uploader("", type=['csv','xlsx'],accept_multiple_files=False)
 
         df = None
         if uploaded_file is not None :
-            st.session_state['data'] = pd.read_excel(uploaded_file)
+            try:
+                st.session_state['data'] = pd.read_excel(uploaded_file)
+            except:
+                try:
+                    st.session_state['data'] = pd.read_csv(uploaded_file)
+                except:
+                    st.error("Erreur lors du chargement du fichier")
+
+        
         st.session_state['uploaded'] = 0  
         if st.session_state['data'] is not None:
             st.session_state.file_details = {
