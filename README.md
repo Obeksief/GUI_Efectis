@@ -4,18 +4,14 @@
 
 
 ## Prérequis
-- Python 3.x 
+- Python 3.11 
 
-## Installation
+## Installation d'un environnement virtuel avec venv
 
-
-
-
-# Pour les systèmes Unix/MacOS
-'''python3 -m venv env'''
-
-# Pour Windows
-'''python -m venv env'''
+Pour les systèmes Unix/MacOS :
+```python3 -m venv env``` 
+Pour Windows
+```python -m venv env```
 
 # Pour les systèmes Unix/MacOS
 '''source env/bin/activate'''
