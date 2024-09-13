@@ -1,7 +1,7 @@
 # Interface Graphique de Regression
 
 ## Description
-
+Ce projet consiste en une interface graphique (GUI) intuitive qui permet aux utilisateurs, même sans compétences avancées en programmation, de créer et entraîner facilement des modèles de machine learning pour des tâches de régression. Grâce à cette interface, l'utilisateur peut charger ses données, configurer divers paramètres d'entraînement (choix du modèle, sélection des features, etc.), visualiser les résultats et évaluer les performances du modèle.
 
 ## Prérequis
 - Python 3.11 
@@ -25,7 +25,8 @@ Pour Windows
 
 
 # Utilisation 
-'''Streamlit run app.py'''
+Ouvrir le terminal et entrer la commande suivante :
+'''Streamlit run [chemin\jusqu'au\fichier]\app.py'''
 
 ***
 
