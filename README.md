@@ -14,19 +14,19 @@ Pour Windows
 ```python -m venv env```  
 
 # Pour les systèmes Unix/MacOS
-'''source env/bin/activate'''
+```source env/bin/activate```
 
 # Pour Windows
-'''
-.\env\Scripts\activate
-'''
+
+```.\env\Scripts\activate```
+
 # Installer les packages
-'''pip install -r requirements.txt'''
+```pip install -r requirements.txt```
 
 
 # Utilisation 
 Ouvrir le terminal et entrer la commande suivante :
-'''Streamlit run [chemin\jusqu'au\fichier]\app.py'''
+```Streamlit run [chemin\jusqu'au\fichier]\app.py```
 
 ***
 
