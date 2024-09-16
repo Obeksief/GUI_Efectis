@@ -192,6 +192,20 @@ def download_model_and_labels(model, input_labels, output_labels, file_name):
     href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
     st.markdown(href, unsafe_allow_html=True)
 
+def download_model_and_scalers_and_encoder_and_labels_and_params(model,scaler_X, scaler_y,params,encoder, input_labels, output_labels, file_name):
+    file = (model, scaler_X, scaler_y,params, encoder, input_labels, output_labels)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+def download_model_and_scalers_and_labels_and_params(model,scaler_X, scaler_y, params, input_labels, output_labels, file_name):
+    file = (model, scaler_X, scaler_y, params, input_labels, output_labels)
+    output = pickle.dumps(file)
+    b64 = base64.b64encode(output).decode()
+    href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
+    st.markdown(href, unsafe_allow_html=True)
+    
 ######################################################################
 ##      SandBox - Entraînement d'un modèle personnalisé             ##
 ######################################################################

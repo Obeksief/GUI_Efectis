@@ -232,10 +232,12 @@ with tab2:
     with col1:
         
         if True:
+            
 
             with st.container(border=True):
                 st.subheader('Nom du modèle :')
                 st.session_state.nom = st.text_input('Nom du modèle', 'modele_personnalisé')
+
             ########################################
             ###       Architecture du modèle     ###
             ########################################
@@ -244,7 +246,7 @@ with tab2:
         
                 st.subheader('Architecture du réseau de neurones')
                 nb_hidden_player = st.number_input('Nombre de couches cachées', min_value=1, max_value=10, value = 2)
-                nb_neurons = []
+                nb_neurons = []   
                 nb_activation = []
                 for _ in range(nb_hidden_player):
                     nb_neurons.append(st.number_input(f'Nombre de neurones pour la couche {_+1}', min_value=1, max_value=500, value = 64, key= _))
@@ -266,6 +268,8 @@ with tab2:
                 # Metrics
                 metrics = st.multiselect('Metrics', ['mse', 'mae', 'huber', 'mape'], default = ['mape', 'mae'])
 
+                
+
             #########################################
             ###       Prétraitement des données   ###
             #########################################
@@ -284,6 +288,8 @@ with tab2:
 
                 # nb epochs
                 epochs = st.number_input('Nombre d\'itération lors de l\'entraînement', min_value=1, max_value=10000, value = 500)
+
+                
             
             #########################################
             ###       Callbacks                   ###
@@ -304,9 +310,7 @@ with tab2:
                 st.write(cyclic)
             
 
-                # Afficher en temps réel l'entrainement du modèle
-                display_graph = st.checkbox('Afficher en temps réel l\'entrainement du modèle')
-                st.write(display_graph)
+                
 
             ##########################################
             ###       Entrainement du modèle       ###
@@ -432,29 +436,49 @@ with tab3:
                 st.error('erreur')
         
     if st.session_state.trained_bool:
+
+        # nb_neurons, nb_activation, optimizer, loss, metrics, scaler, test_size, valid_size, epochs, 
+        # metric_earlystopping, threshold_earlystop, cyclic
+        # params à mettre dans le dictionnaire
+        st.session_state['personalized_params'] = {'nb_neurons': nb_neurons, 
+                                                   'nb_activation': nb_activation, 
+                                                   'optimizer': optimizer, 
+                                                   'loss': loss, 
+                                                   'metrics': metrics, 
+                                                   'scaler': scaler, 
+                                                   'test_size': test_size, 
+                                                   'valid_size': valid_size, 
+                                                   'epochs': epochs, 
+                                                   'metric_earlystopping': metric_earlystopping, 
+                                                   'threshold_earlystop': threshold_earlystop, 
+                                                   'cyclic': cyclic}
+
+
         st.write('Téléchargement du modèle')
-        if st.button('Télécharger le modèle personnalisé'):    
+
+        if st.button('Télécharger le modèle personnalisé'):
+
             if len(st.session_state['one_hot_labels']) > 0:
-                st.write('custom nn et HOt labels > 0')
-                download_model_and_scalers_and_encoder_and_labels(st.session_state['personalized_model'],
-                                                                st.session_state['personalized_X_scaler'], 
-                                                                st.session_state['personalized_Y_scaler'], 
-                                                                st.session_state['encoder'],
-                                                                st.session_state['all_inputs'],
-                                                                st.session_state['outputs'],
-                                                                st.session_state.nom)
+                download_model_and_scalers_and_encoder_and_labels_and_params(st.session_state['personalized_model'],
+                                                                 st.session_state['personalized_X_scaler'], 
+                                                                 st.session_state['personalized_Y_scaler'], 
+                                                                 st.session_state['personalized_params'],
+                                                                 st.session_state['encoder'],
+                                                                 st.session_state['all_inputs'],
+                                                                 st.session_state['outputs'],
+                                                                 st.session_state.nom)
+                
             elif len(st.session_state['one_hot_labels']) == 0:
-                st.write('custom nn et HOt labels = 0')
-                download_model_and_scalers_and_labels(st.session_state['personalized_model'],
+                download_model_and_scalers_and_labels_and_params(st.session_state['personalized_model'],
                                                     st.session_state['personalized_X_scaler'], 
                                                     st.session_state['personalized_Y_scaler'], 
+                                                    st.session_state['personalized_params'],
                                                     st.session_state['all_inputs'],
                                                     st.session_state['outputs'],
                                                     st.session_state.nom)
             else:
                 st.error('erreur')
-        
-            
+
         
         
     

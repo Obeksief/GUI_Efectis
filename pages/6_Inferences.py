@@ -79,6 +79,9 @@ with tab1:
                 
                 if output[-1].__class__.__name__ == 'OneHotEncoder':
                     st.session_state['reconstructed_ohe'] = output[-1]
+                    st.write('Les variables qualitatives connues de ce modèle sont :', st.session_state['reconstructed_ohe'].feature_names_in_)
+                    st.write(st.session_state['reconstructed_ohe'].categories_)
+                    output = output[:-1]
                 else :
                     st.session_state['reconstructed_ohe'] = None
             
@@ -86,7 +89,10 @@ with tab1:
                     model_name = 'MLPRegressor'
                 elif type(output[0]).__name__ == 'Sequential':
                
-                    model_name = 'Sequential'
+                    model_name = 'Sequential' 
+                    params = output[-1]                           # On récupère les paramètres du modèle
+                    st.write(params)                              # On les affiche
+                    output = output[:-1]
                 else :
                     
                     model_name = type(output[0].estimators_[0]).__name__
@@ -129,6 +135,7 @@ def get_labeled_data(input_data, encoder):
     return X_encoded
             
 with tab2:
+
     if st.button('Démarrer l\'inférence'):
         st.info(model_name)
 
