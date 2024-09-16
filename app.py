@@ -10,10 +10,15 @@ def main():
 
     st.title('Main page')
     st.sidebar.info('Choisir une page')
-    st.markdown('Bienvenue sur notre application Streamlit dédiée à la création de modèles de machine learning pour les problèmes de régression.  Cette plateforme vous permet de développer et d évaluer facilement des modèles de prédiction à partir de vos propres jeux de données.')
-    st.markdown('### Expliques le projet et les pages gros nigaud:')
-    st.write('-- Description du projet')
+    st.markdown('Bienvenue sur notre application Streamlit dédiée à la création de modèles de machine learning pour les problèmes de régression.  Cette plateforme vous permet de développer et d\'évaluer facilement des modèles de prédiction à partir de vos propres jeux de données.')
+   
+
     st.write('-- Indications ')
+    st.write('L\'application se divise en 3 parties :')
+    st.write('1) Importer les données d\'entraînement dans l\'onglet "Importation des données"')
+    st.write('2) Créer et entraîner un modèle dans les onglets "Entraînement préliminaire", "Modèle Optimisé" et "Bac à sable"')
+    st.write('3) Faire des prédictions à l\'aide d\'un modèle téléchargé dans la partie 2) sur de nouvelles données dans l\'onglet "Inférences"')
+
     st.header('Pages')
     
     ### Import data
