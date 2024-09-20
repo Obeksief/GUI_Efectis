@@ -1,6 +1,7 @@
 import streamlit as st
 from ut import *
 from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import train_test_split
 
 st.title('Bac à sable Réseau de neurones')
 
@@ -230,10 +231,7 @@ with tab1:
 with tab2:
     col1, col2 = st.columns([2,2])
     with col1:
-        
         if True:
-            
-
             with st.container(border=True):
                 st.subheader('Nom du modèle :')
                 st.session_state.nom = st.text_input('Nom du modèle', 'modele_personnalisé')
@@ -306,8 +304,8 @@ with tab2:
                 # Model checkpoint
                 # Reduce LR on plateau ( On SGD and RMSprop )
                 # Cyclical lr 
-                cyclic = st.checkbox('Cyclical learning rate')
-                st.write(cyclic)
+                #cyclic = st.checkbox('Cyclical learning rate')
+                #st.write(cyclic)
             
 
                 
@@ -315,18 +313,31 @@ with tab2:
             ##########################################
             ###       Entrainement du modèle       ###
             ##########################################
+
             if 'trained_bool' not in st.session_state:
                 st.session_state.trained_bool = False
+
             if st.button('Valider la saiie et démarrer l\'entraînement'):
                 st.session_state['personalized_model'] = create_customized_model(st.session_state.X.shape[1], nb_neurons, nb_activation, st.session_state.y.shape[1])
                 st.info('Modèle créé')
                 st.session_state['personalized_model'] = compile_customized_model(st.session_state['personalized_model'], optimizer, loss, metrics)
                 st.info('Modèle compilé')
+
+                ### Scale numerical X and Y
+                st.session_state['personalized_scaled_num_X'], st.session_state['personalized_scaled_Y'], st.session_state['personalized_X_scaler'], st.session_state['personalized_Y_scaler'] = preprocess_data(st.session_state.X_num, st.session_state.y, scaler)
+                ### Concatenate with categorical X
+                st.session_state['personalized_X'] = np.concatenate((st.session_state['personalized_scaled_num_X'], st.session_state['X_labeled']), axis=1)
+                ### Split into test and train   
+                st.error(test_size)
+                st.error(st.session_state['personalized_X'].shape)
+                st.error(st.session_state['personalized_scaled_Y'].shape)
+
+                
+                st.session_state['personalized_X_train'], st.session_state['personalized_X_test'], st.session_state['personalized_Y_train'], st.session_state['personalized_Y_test'] = train_test_split(st.session_state['personalized_X'], 
+                                                                                                                                                                                                        st.session_state['personalized_scaled_Y'], 
+                                                                                                                                                                                                        test_size=test_size)
                  
-                st.session_state['personalized_X_train'],st.session_state['personalized_X_test'],st.session_state['personalized_Y_train'] ,st.session_state['personalized_Y_test'] ,st.session_state['personalized_X_scaler'],st.session_state['personalized_Y_scaler'] = preprocess_data(st.session_state['X'],
-                                                                            st.session_state['y'], 
-                                                                            scaler, 
-                                                                            test_size)
+
                 st.info('Données prétraitées')
              
                 #callbacks = create_customized_callbacks(metrics, {metric_earlystopping: threshold_earlystop}, cyclic, display_graph)
@@ -451,7 +462,7 @@ with tab3:
                                                    'epochs': epochs, 
                                                    'metric_earlystopping': metric_earlystopping, 
                                                    'threshold_earlystop': threshold_earlystop, 
-                                                   'cyclic': cyclic}
+                                                }
 
 
         st.write('Téléchargement du modèle')

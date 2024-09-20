@@ -290,7 +290,7 @@ def compile_customized_model(model, optimizer, loss, metrics):
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     return model
 
-def preprocess_data(X_num, Y, scaler, test_size):
+def preprocess_data(X_num, Y, scaler):
 
     if scaler == 'StandardScaler':
         sc_X = StandardScaler()
@@ -305,9 +305,9 @@ def preprocess_data(X_num, Y, scaler, test_size):
     X_num_scaled = sc_X.fit_transform(X_num)
     Y_scaled = sc_Y.fit_transform(Y)
 
-    X_train, X_test, Y_train, Y_test = train_test_split(X_num_scaled, Y_scaled, test_size=test_size, random_state=42)
 
-    return X_train, X_test, Y_train, Y_test, sc_X, sc_Y
+    return X_num_scaled, Y_scaled, sc_X, sc_Y
+
 
 def create_customized_callbacks(metrics, dic_seuil_early_stopping, cyclic, display_graph):
     callbacks = []

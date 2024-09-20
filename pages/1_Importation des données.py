@@ -12,7 +12,11 @@ def split_input_output(input_data, inputs, outputs):
 def get_labeled_data(input_data, labels):
     return input_data[labels]
 
-st.set_page_config(layout="wide", page_title="Dataset")
+def colorize_multiselect_options(color: str) -> None:
+    rule = f".stMultiSelect div[data-baseweb='select'] span[data-baseweb='tag']{{background-color: {color};}}"
+    st.markdown(f"<style>{rule}</style>", unsafe_allow_html=True)
+
+st.set_page_config(layout="wide", page_title="Jeu de données")
 st.header("Choix des données d\'entrainement")
             
 #if 'data' in st.session_state:
@@ -95,6 +99,9 @@ if dataset_choix == "Choisir un dataset personnel":
                 features = st.session_state['data'].columns
                 liste = [str(_) for _ in features]
 
+                # Background color for multiselect options
+                colorize_multiselect_options("darkcyan")
+                
                 st.subheader("Choix des variables d'entrées")
                 # inputs
                 inputs = st.multiselect(label="Quelles sont les variables quantitatives:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
@@ -134,14 +141,14 @@ if dataset_choix == "Choisir un dataset personnel":
                         st.session_state['all_inputs'] = inputs
 
                     # Séparer X et y
-                    st.session_state['X'], st.session_state['y'] = split_input_output(st.session_state.data, 
+                    st.session_state['X_num'], st.session_state['y'] = split_input_output(st.session_state.data, 
                                                                                       st.session_state['inputs'], 
                                                                                       st.session_state['outputs'])
                     
 
                     
                     # Créer des données scalées ( Créer les variables seesion_state 'scaler_X' et 'scaler_y')
-                    st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X'], 
+                    st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X_num'], 
                                                                                             st.session_state['y'])
 
                     def get_labeled_data_fit_transform(input_data, labels):
@@ -163,7 +170,7 @@ if dataset_choix == "Choisir un dataset personnel":
                     if len(st.session_state['one_hot_labels']) > 0:
                         st.session_state['X_labeled'] = get_labeled_data_fit_transform(st.session_state['data'], st.session_state['one_hot_labels'])
                         st.session_state['X_scaled'] = np.concatenate((st.session_state['X_scaled'], st.session_state['X_labeled']), axis=1)
-                        st.session_state['X'] = np.concatenate((st.session_state['X'], st.session_state['X_labeled']), axis=1)
+                        st.session_state['X'] = np.concatenate((st.session_state['X_num'], st.session_state['X_labeled']), axis=1)
 
 
                     

@@ -12,6 +12,12 @@ def get_scaled_data(input_data,scaler):
     X_scaled = scaler.transform(input_data)
     return X_scaled
 
+def get_labeled_data(input_data, encoder):
+    col_to_encode = input_data[encoder.feature_names_in_]
+    X_encoded = encoder.transform(col_to_encode)
+    X_encoded = X_encoded.toarray()
+    return X_encoded
+
 scaler_file = None
 model_file = None
 
@@ -128,11 +134,7 @@ with tab1:
 ##################################
 ###          Tab 2              ##
 ##################################
-def get_labeled_data(input_data, encoder):
-    col_to_encode = input_data[encoder.feature_names_in_]
-    X_encoded = encoder.transform(col_to_encode)
-    X_encoded = X_encoded.toarray()
-    return X_encoded
+
             
 with tab2:
 
