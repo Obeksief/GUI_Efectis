@@ -172,6 +172,9 @@ if dataset_choix == "Choisir un dataset personnel":
                         st.session_state['X_scaled'] = np.concatenate((st.session_state['X_scaled'], st.session_state['X_labeled']), axis=1)
                         st.session_state['X'] = np.concatenate((st.session_state['X_num'], st.session_state['X_labeled']), axis=1)
 
+                    elif len(st.session_state['one_hot_labels']) == 0:
+                        st.session_state['X'] = st.session_state['X_num']
+
 
                     
                     X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], 

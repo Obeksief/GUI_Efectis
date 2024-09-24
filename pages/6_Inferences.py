@@ -74,8 +74,8 @@ with tab1:
             output = output[:-1]
             st.session_state['model_input_labels'] = output[-1]
             output = output[:-1]
-            st.info(f"model_input_labels: {st.session_state['model_input_labels']}")
-            st.info(f"model_output_labels: {st.session_state['model_output_labels']}")
+            st.info(f"Ordre et noms des variables d\'entrées nécessaires sur le jeu de données à inférer :{st.session_state['model_input_labels']}")
+            st.info(f"Ordre et noms des variables de sortie du modèle : {st.session_state['model_output_labels']}")
 
 
 
@@ -85,8 +85,9 @@ with tab1:
                 
                 if output[-1].__class__.__name__ == 'OneHotEncoder':
                     st.session_state['reconstructed_ohe'] = output[-1]
-                    st.write('Les variables qualitatives connues de ce modèle sont :', st.session_state['reconstructed_ohe'].feature_names_in_)
-                    st.write(st.session_state['reconstructed_ohe'].categories_)
+                    st.subheader('Les variables qualitatives et leurs états possibles connus de ce modèle sont :')
+                    for i, category in enumerate(st.session_state['reconstructed_ohe'].categories_):
+                        st.write(f"({st.session_state['reconstructed_ohe'].feature_names_in_[i]}): {category}")
                     output = output[:-1]
                 else :
                     st.session_state['reconstructed_ohe'] = None
@@ -97,7 +98,19 @@ with tab1:
                
                     model_name = 'Sequential' 
                     params = output[-1]                           # On récupère les paramètres du modèle
-                    st.write(params)                              # On les affiche
+                    
+                    st.subheader('Les hyperparamètres et configurations de ce modèle sont : ')
+                    architecture = []
+                    for i in range(len(params["nb_neurons"])):
+                        architecture.append(params["nb_neurons"][i])
+                        architecture.append(params["nb_activation"][i])
+                    st.write(f"Nombre de neurones et fonction d\'activation par couche: {architecture}")
+                    st.write(f"Optimiseur et taux d'apprentissage initial: {params['optimizer']} - {params['learning_rate_initiale']}")
+                    st.write(f"fonction de perte et métriques: {params['loss']} - {params['metrics']}")
+                    
+                    st.write(f"Pourcentage de données de validation et de test: {params['valid_size']*100} - {params['test_size']*100} ")
+                    st.write(f"scaler utilisé pour les données d'entrée: {params['scaler']}")
+                    st.write(f"Nombre d'epochs pendant l\entraînement: ", params['epochs'])
                     output = output[:-1]
                 else :
                     

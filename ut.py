@@ -276,8 +276,6 @@ class Plot(keras.callbacks.Callback):
         plt.plot(self.x, self.val_losses, label="val_loss")
         st.pyplot(self.fig, clear_figure=True, use_container_width=True)
         
-        
-
 def create_customized_model(input_shape, list_neurons, liste_activation, output_shape):
     model = Sequential()
     model.add(keras.layers.Dense(list_neurons[0], input_shape=(input_shape,), activation=liste_activation[0]))
@@ -286,8 +284,16 @@ def create_customized_model(input_shape, list_neurons, liste_activation, output_
     model.add(Dense(output_shape, activation='linear'))
     return model
 
-def compile_customized_model(model, optimizer, loss, metrics):
+def compile_customized_model(model, learning_rate_init, optimizer, loss, metrics):
+    if optimizer == 'Adam':
+        optimizer = keras.optimizers.Adam(learning_rate=learning_rate_init)
+    elif optimizer == 'SGD':
+        optimizer = keras.optimizers.SGD(learning_rate=learning_rate_init)
+    elif optimizer == 'RMSprop':
+        optimizer = keras.optimizers.RMSprop(learning_rate=learning_rate_init)
+
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    
     return model
 
 def preprocess_data(X_num, Y, scaler):
@@ -308,7 +314,6 @@ def preprocess_data(X_num, Y, scaler):
 
     return X_num_scaled, Y_scaled, sc_X, sc_Y
 
-
 def create_customized_callbacks(metrics, dic_seuil_early_stopping, cyclic, display_graph):
     callbacks = []
     return callbacks
@@ -326,6 +331,7 @@ def train_customized_model(model, X_train, Y_train, epochs, batch_size,valid_siz
     return model, history 
 
 def evaluate_customized_model(model, X_test, Y_test):
+    # https://keras.io/api/models/model_training_apis/#evaluate-method
     err = model.evaluate(X_test, Y_test)
 
     return err

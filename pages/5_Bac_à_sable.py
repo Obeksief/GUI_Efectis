@@ -2,6 +2,7 @@ import streamlit as st
 from ut import *
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
 st.title('Bac à sable Réseau de neurones')
 
@@ -248,28 +249,34 @@ with tab2:
                 nb_activation = []
                 for _ in range(nb_hidden_player):
                     nb_neurons.append(st.number_input(f'Nombre de neurones pour la couche {_+1}', min_value=1, max_value=500, value = 64, key= _))
-                    nb_activation.append(st.selectbox(f'Fonction d\'activation pour la couche {_+1}', [ 'leaky_relu','relu', 'tanh', 'sigmoid', 'selu', 'elu' ]))
+                    nb_activation.append(st.selectbox(f'Fonction d\'activation pour la couche {_+1}', ['leaky_relu','relu', 'tanh', 'sigmoid', 'selu', 'elu' ]))
 
         
 
 
             ########################################
-            ###       Compilation                ###
+            ###          Compilation             ###
             ########################################
+
             with st.container(border=True):
+
                 st.subheader('Hyperparamètres de compilation')
+
+                # Learning rate initial
+                learning_rate_initiale = st.number_input('Taux d\'apprentissage initial', min_value=0.0001, max_value=1.0, value = 0.01)
+                st.info(learning_rate_initiale)
 
                 # Optimizer
                 optimizer = st.selectbox('Optimizer', ['adam', 'rmsprop', 'sgd'], placeholder='adam') 
                 # Loss
-                loss = st.selectbox('Loss', ['mse', 'mae', 'huber'], placeholder='mse')
+                loss = st.selectbox('Loss', ['mse', 'mae'], placeholder='mse')
                 # Metrics
-                metrics = st.multiselect('Metrics', ['mse', 'mae', 'huber', 'mape'], default = ['mape', 'mae'])
+                metrics = st.multiselect('Metrics', ['mse', 'mae', 'mape'], default = ['mape', 'mae'])
 
                 
 
             #########################################
-            ###       Prétraitement des données   ###
+            ###     Prétraitement des données     ###
             #########################################
 
             with st.container(border=True):
@@ -317,26 +324,28 @@ with tab2:
             if 'trained_bool' not in st.session_state:
                 st.session_state.trained_bool = False
 
-            if st.button('Valider la saiie et démarrer l\'entraînement'):
+            if st.button('Valider la saisie et démarrer l\'entraînement'):
                 st.session_state['personalized_model'] = create_customized_model(st.session_state.X.shape[1], nb_neurons, nb_activation, st.session_state.y.shape[1])
                 st.info('Modèle créé')
-                st.session_state['personalized_model'] = compile_customized_model(st.session_state['personalized_model'], optimizer, loss, metrics)
+                st.session_state['personalized_model'] = compile_customized_model(st.session_state['personalized_model'],learning_rate_initiale , optimizer, loss, metrics)
                 st.info('Modèle compilé')
 
                 ### Scale numerical X and Y
                 st.session_state['personalized_scaled_num_X'], st.session_state['personalized_scaled_Y'], st.session_state['personalized_X_scaler'], st.session_state['personalized_Y_scaler'] = preprocess_data(st.session_state.X_num, st.session_state.y, scaler)
                 ### Concatenate with categorical X
-                st.session_state['personalized_X'] = np.concatenate((st.session_state['personalized_scaled_num_X'], st.session_state['X_labeled']), axis=1)
+                if len(st.session_state['one_hot_labels']) > 0:
+                    st.session_state['personalized_X'] = np.concatenate((st.session_state['personalized_scaled_num_X'], st.session_state['X_labeled']), axis=1)
+                elif len(st.session_state['one_hot_labels']) == 0:
+                    st.session_state['personalized_X'] = st.session_state['personalized_scaled_num_X']
                 ### Split into test and train   
-                st.error(test_size)
-                st.error(st.session_state['personalized_X'].shape)
-                st.error(st.session_state['personalized_scaled_Y'].shape)
-
                 
                 st.session_state['personalized_X_train'], st.session_state['personalized_X_test'], st.session_state['personalized_Y_train'], st.session_state['personalized_Y_test'] = train_test_split(st.session_state['personalized_X'], 
                                                                                                                                                                                                         st.session_state['personalized_scaled_Y'], 
                                                                                                                                                                                                         test_size=test_size)
-                 
+                
+                #############################################
+                ###    Informations pour l'utilisateur    ###
+                #############################################
 
                 st.info('Données prétraitées')
              
@@ -351,9 +360,23 @@ with tab2:
                                                                                              valid_size)
                 st.info('Modèle entraîné')
                 err = evaluate_customized_model(st.session_state['personalized_model'], st.session_state['personalized_X_test'], st.session_state['personalized_Y_test'])
-                st.info(f'Erreur de prédiction : {err}')
-                st.info(st.session_state['personalized_model'].metrics_names)
-                st.session_state.trained_bool = True
+                
+                for i in range(len(metrics)):
+                    st.write(f'Erreur {metrics[i]} : {err[i+1]}')
+           
+
+                st.write(history.history.keys())
+                for i in range(len(metrics)):
+
+                    # Plot training & validation loss values
+                    fig, ax = plt.subplots()
+                    ax.set_title(f'Erreur {metrics[i]}')
+                    ax.plot(history.history[f'val_{metrics[i]}'], label='Erreur sur les données de validation')
+                    ax.plot(history.history[f'{metrics[i]}'], label='Erreur sur les données d\'entrainement')
+                    ax.legend()
+                    st.pyplot(fig=fig)
+
+       
 
 
         else:
@@ -366,17 +389,48 @@ with tab2:
 
         st.write('Un réseau de neurones avec 2 couches cachées peut généralement être capable d\'approximer n\'importe quelle fonction continue. \n')
         st.write('Il est donc possible de tester différentes architectures pour trouver celle qui convient le mieux à votre problème. \n')
-
+        st.write('Il est important de noter que plus le nombre de neurones est élevé, plus le modèle sera complexe et plus il sera long à entraîner. \n')
+        st.write('La fonction d\'activation est une fonction mathématique qui est appliquée à la sortie de chaque neurone. \n')
+        st.write('Pour plus d\'informations sur les fonctions d\'activation : \n')
+        st.link_button("Wiki fonction d\'activation", "https://fr.wikipedia.org/wiki/Fonction_d%27activation")
         ########################################
         ###        Compilation               ###
         ########################################
 
         st.write('L\'optimiseur est responsable de la mise à jour des poids du réseau de neurones. \n')
+        st.write('C\'est à dire qu\'il est responsable de la minimisation de la fonction de perte, et donc de la spécialisation du réseau de neurones \n')
+        
 
         st.write('La fonction de perte est une mesure de la qualité de la prédiction du modèle. \n')
         st.latex(r'L(y, f(x)) = \frac{1}{n} \sum_{i=1}^{n} L(y_i, f(x_i))')
+        st.write("""
+Dans cette équation, \( L(y, f(x)) \) représente la fonction de perte moyenne sur l'ensemble des données.
+- \( y_i \) est le résultat attendu de la i-ème instance du jeu de données.
+- \( f(x_i) \) est la prédiction du réseau de neurones sur la i-ème instance, où \( x_i \) est l'entrée de la i-ème instance.
+- \( L(y_i, f(x_i)) \) est la perte pour une instance donnée, qui mesure la différence entre la prédiction \( f(x_i) \) et la vraie valeur \( y_i \).
+- \( n \) est le nombre total d'instances dans le jeu de données.
 
-        st.write('Les métriques sont des indicateurs de performance du modèle. \n')
+L'équation ci-dessous représente la moyenne de la perte sur toutes les instances de l'ensemble de données :
+""")
+        st.write('L\optimiseur change plus ou moins les paramètres du modèle, le pas de changement est appelé le taux d\'apprentissage. \n')
+        st.write('Plus d\'informations sur le mécanisme derrière l\'optimiseur : \n')
+        st.link_button("Wiki backpropagation", "https://fr.wikipedia.org/wiki/R%C3%A9tropropagation_du_gradient")	
+        st.write('Les métriques sont des indicateurs de performance du modèle, elles permettent de mesurer la qualité de la prédiction du modèle. \n')
+        st.write('Elles ne servent qu\'à communiquer à l\'utilisateur les mesures d\'erreur qu\'il y a eu au cours de l\'entrainement\n')
+        st.write('Il est important de noter que la fonction de perte est la seule fonction qui est minimisée par l\'optimiseur. Les métriques ne sont qu\'indicatives \n')
+        st.write('Pour plus d\'informations sur les métriques proposées : \n')
+        col2_1, col2_2, col2_3, col2_4 = st.columns([1,1,1,1])
+        with col2_1:
+            st.link_button("Wiki MSE", "https://fr.wikipedia.org/wiki/Erreur_quadratique_moyenne")
+
+        with col2_2:
+            st.link_button("Wiki MAE", "https://en.wikipedia.org/wiki/Mean_absolute_error")
+        
+        with col2_3:
+            st.link_button("Wiki Huber", "https://en.wikipedia.org/wiki/Huber_loss")
+
+        with col2_4:
+            st.link_button("Wiki MAPE", "https://en.wikipedia.org/wiki/Mean_absolute_percentage_error")
 
         ########################################
         ###        Prétraitement             ###
@@ -387,8 +441,8 @@ with tab2:
         st.write('Généralement, la normalisation gaussienne (StandardScaler) est la plus efficace pour les données numériques. \n')
 
         st.write('Il est également important de diviser les données en un ensemble d\'entraînement et un ensemble de test. \n')
-        st.write('L\'ensemble de test est utilisé pour évaluer la performance du modèle. \n')
-        st.write('Le nombre d\'itérations (epochs) est le nombre de fois que le modèle va parcourir l\'ensemble d\'entraînement. \n')
+        st.write('L\'ensemble de test est un corpus de données, extrait des données fournis, non connu par le modèle utilisé pour évaluer la performance du modèle. \n')
+        st.write('Le nombre d\'itérations (epochs) est le nombre de fois que le modèle va parcourir l\'ensemble d\'entraînement pour changer ses paramètres. \n')
         st.write('A noter que le modèle peut arrêter l\'entraînement avant la fin des epochs si la performance ne s\'améliore plus. \n,C\'est une variable à l\'appréciation de l\'utilisateur. \n')
 
         ########################################
@@ -397,7 +451,9 @@ with tab2:
 
         st.write('Les callbacks sont des fonctions qui sont appelées à des moments précis lors de l\'entraînement du modèle. \n')
         st.write('Ils permettent de contrôler le comportement du modèle pendant l\'entraînement. \n')
-        st.write('Par exemple, le callback EarlyStopping arrête l\'entraînement si la performance du modèle ne s\'améliore plus. \n')
+        st.write('Par exemple, le callback EarlyStopping arrête l\'entraînement si la performance du modèle ne s\'améliore plus, il est implémenté par défaut. \n')
+        st.write('Ici on propose de choisir une métrique et un seuil de déclanchement de l\'arrêt de l\'entrainement \n')
+        st.write('Par exemple si la métrique est le MAPE et le seuil est 10, le modèle s\'arrêtera si l\'erreur passe en dessous de 10\%. \n')
 
 
 
@@ -454,6 +510,7 @@ with tab3:
         st.session_state['personalized_params'] = {'nb_neurons': nb_neurons, 
                                                    'nb_activation': nb_activation, 
                                                    'optimizer': optimizer, 
+                                                   'learning_rate_initiale': learning_rate_initiale,
                                                    'loss': loss, 
                                                    'metrics': metrics, 
                                                    'scaler': scaler, 
@@ -461,7 +518,7 @@ with tab3:
                                                    'valid_size': valid_size, 
                                                    'epochs': epochs, 
                                                    'metric_earlystopping': metric_earlystopping, 
-                                                   'threshold_earlystop': threshold_earlystop, 
+                                                   'threshold_earlystop': threshold_earlystop
                                                 }
 
 
