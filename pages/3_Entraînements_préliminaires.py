@@ -37,10 +37,65 @@ def download_model_and_encoder(model, encoder, file_name):
     href = f'<a href="data:file/output_model;base64,{b64}" download="modele_{file_name}.pkl">Download Trained {file_name} Model</a>'
     st.markdown(href, unsafe_allow_html=True)
 
+def display_rmse_formula():
+    st.markdown("**Erreur abolue : RMSE (Root Mean Square Error)**")
+    st.latex(r"\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}")
+    st.latex(r"où :")
+    st.latex(r"- y_i \text{ est la valeur réelle,}")
+    st.latex(r"- \hat{y}_i \text{ est la valeur prédite,}")
+    st.latex(r"- n \text{ est le nombre d’observations.}")
 
+    return True
 
+def display_mape_formula():
+    st.markdown("**Erreur relative : MAPE (Mean Absolute Percentage Error)**")
+    st.latex(r"\text{MAPE} = \frac{1}{n} \sum_{i=1}^{n} \left| \frac{y_i - \hat{y}_i}{y_i} \right| \times 100")
+    st.latex(r"où :")
+    st.latex(r"- y_i \text{ est la valeur réelle,}")
+    st.latex(r"- \hat{y}_i \text{ est la valeur prédite,}")
+    st.latex(r"- n \text{ est le nombre d’observations.}")
 
-st.title('Modeles')
+    return True 
+
+def Display_erreur_absolu(df4):
+    fig3 = px.scatter(df4, 
+                    x='Modèles', 
+                    y='Erreur RMSE', 
+                    title='Erreur de chaque modèle', 
+                    color='Erreur RMSE', 
+                    color_continuous_scale='RdYlGn_r')
+    fig3.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
+    st.plotly_chart(fig3)           
+
+    return True
+
+def Display_temps_entrainement(df2):
+
+    fig2 = px.bar(df2, 
+                x='Modèles', 
+                y='temps d\'entraînement', 
+                title='Temps d\'entraînement de chaque modèle (en secondes)',
+                color='temps d\'entraînement',
+                color_continuous_scale='RdYlGn_r')
+
+    st.plotly_chart(fig2)
+
+    return True 
+
+def Display_erreur_relative(df1):
+    fig1 = px.scatter(df1, 
+                    x='Modèles', 
+                    y='Erreur relative (en %)',              
+                    title='Erreur de chaque modèle (en %)', 
+                    color='Erreur relative (en %)',             
+                    color_continuous_scale='RdYlGn_r')
+
+    fig1.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
+    st.plotly_chart(fig1)
+
+    return True 
+
+st.title('Modeles rudimentaires')
 
 tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Choix des modèles à entraîner", "Téléchargement"])
 
@@ -77,7 +132,7 @@ with tab1:
             st.subheader('Description')
             st.write('Ici plusieurs modèles de machine learning vont tenter de prédire les sorties à partir des entrées. ')
             st.write('  Les modèles seront ensuite comparés pour déterminer le plus performant. ')
-            st.write('BLUBLUBLABLABLA')
+    
     else : 
         st.error('Pas de données chargées')
 
@@ -92,16 +147,18 @@ with tab1:
 with tab2:
     col_1, col_2 = st.columns([1,1])
     
-    data1 = {'Modèles': [], 'Erreur relative (en %)': []}
+    data1 = {'Modèles': [], 'Erreur relative (en %)': []} #############################################################################
     data2 = {'Modèles': [], 'temps d\'entraînement': []}
     data3 = {'Modèles': [], 'Erreur RMSE': []}
 
     ### Choix des modèles à entraîner
     st.subheader('Choix des algorithmes')
 
+    st.markdown("_La notation \"Neural Network 32 16\" est un réseau de neurones à deux couches, la première de 32 neurones et la seconde de 16 neurones._")
+
     liste_models = st.multiselect(label='Choisir les algotithmes à entraîner', 
-                                  options=['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'], 
-                                  default=['Random Forest', 'Neural Network', 'XGBoost', 'CatBoost'])
+                                  options=['Random Forest', 'XGBoost', 'CatBoost', 'Neural Network 32 16', 'Neural Network 64 64', 'Neural Network 128 64','Neural Network 128 128','Neural Network 128 64 32'], 
+                                  default=['Random Forest', 'XGBoost', 'CatBoost', 'Neural Network 32 16', 'Neural Network 64 64', 'Neural Network 128 64','Neural Network 128 128','Neural Network 128 64 32'])
     
     if st.button('Valider les choix'):
 
@@ -125,10 +182,15 @@ with tab2:
                 start_time = time.time()
 
                 # Entrainement des modèles avec données mises à l'échelle 
-                if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+                #if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+                if model == 'XGBoost' or model == 'CatBoost':
                     st.session_state[model] = globals()[f'train_{model.lower().replace(" ", "_")}'](st.session_state[model], 
                                                                                                     st.session_state['X_train_scaled'], 
                                                                                                     st.session_state['y_train_scaled'])
+                elif 'Neural Network' in model:
+                    st.session_state[model] = train_neural_network(st.session_state[model], 
+                                                                   st.session_state['X_train_scaled'], 
+                                                                   st.session_state['y_train_scaled'])
                     
                 # Entrainement des autres modèles
                 else:
@@ -176,18 +238,23 @@ with tab2:
             # Clés de st.session_state créées dans le fichier de fonctions
             # st.session_state['scaler_X']
             # st.session_state['scaler_y']
+
+            cool_1, cool_2, cool_3 = st.columns([1,1,1])
+
+            
             
             ### Test des modèles
             if len(st.session_state['outputs']) == 1:
                 for model in st.session_state['liste_models']:
                     i = 0
                     # Test des modèles avec données mises à l'échelle
-                    if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+                    #if model == 'Neural Network' or model == 'XGBoost' or model == 'CatBoost':
+                    if 'Neural Network' in model or model == 'XGBoost' or model == 'CatBoost':
                         y_pred = st.session_state[model].predict(st.session_state['X_test_scaled'])
                         y_pred_inverse_scaled = st.session_state['scaler_y'].inverse_transform(y_pred.reshape(-1, 1))
                         y_test_inverse_scaled = st.session_state['scaler_y'].inverse_transform(st.session_state['y_test_scaled'].reshape(-1, 1))
 
-                       
+                    
                         mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
                         rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
 
@@ -199,7 +266,7 @@ with tab2:
 
                     # Ajout des erreurs dans les dictionnaires
                     data1['Modèles'].append(model)
-                    data1['Erreur relative (en %)'].append(mape_err)
+                    data1['Erreur relative (en %)'].append(mape_err) ##########################################################################
                     data3['Modèles'].append(model)
                     data3['Erreur RMSE'].append(rmse_err)
 
@@ -216,7 +283,7 @@ with tab2:
                         mape_err = round(mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled) * 100, 2)
                         rmse_err = round(np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled)), 4)
 
-       
+    
                         mape_err_rawvalues  = mean_absolute_percentage_error(y_test_inverse_scaled, y_pred_inverse_scaled, multioutput='raw_values') * 100
                         rmse_err_rawvalues  = np.sqrt(mean_squared_error(y_test_inverse_scaled, y_pred_inverse_scaled,multioutput='raw_values'))
 
@@ -232,7 +299,7 @@ with tab2:
 
                     # Ajout des erreurs dans les dictionnaires
                     data1['Modèles'].append(model)
-                    data1['Erreur relative (en %)'].append(mape_err)
+                    data1['Erreur relative (en %)'].append(mape_err) #######################################################################
                     data3['Modèles'].append(model)
                     data3['Erreur RMSE'].append(rmse_err)
 
@@ -243,66 +310,43 @@ with tab2:
             else:
                 st.error('Pas de données de sortie')
         
-                
-                
+            ### Création des différents dataframe pour les graphiques 
 
-       
+            df4 = pd.DataFrame(data3)
+        
+            df1 = pd.DataFrame(data1)
+            df2 = pd.DataFrame(data2)
+            df3 = pd.merge(df1, 
+                        df4, 
+                        on='Modèles')
+            df3 = pd.merge(df3, 
+                        df2, 
+                        on='Modèles')
+            
+            
 
+
+            with cool_1 :
+                st.dataframe(df3,hide_index=True)
+                
+            with cool_2:
+                display_mape_formula()
+                
+            with cool_3:
+
+                display_rmse_formula()
+        
       
-        st.warning('Mémo à moi même : Mettre les formules MAPE et RMSE')
 
-       
-        df4 = pd.DataFrame(data3)
+
         
-        df1 = pd.DataFrame(data1)
-        df2 = pd.DataFrame(data2)
-        df3 = pd.merge(df1, 
-                       df4, 
-                       on='Modèles')
-        df3 = pd.merge(df3, 
-                       df2, 
-                       on='Modèles')
-        
-        st.dataframe(df3,
-                     hide_index=True)
-        
-        st.subheader('Erreurs en valeurs relatives des modèles sur l\'ensemble de test')
+
         ### Affichage graphique des erreurs relatives ( MAPE)
-        fig1 = px.scatter(df1, 
-                          x='Modèles', 
-                          y='Erreur relative (en %)', 
-                          title='Erreur de chaque modèle (en %)', 
-                          color='Erreur relative (en %)', 
-                          color_continuous_scale='RdYlGn_r')
-        fig1.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
-        st.plotly_chart(fig1)
-
-        st.subheader('Erreurs en valeurs absolues des modèles sur l\'ensemble de test')
-
-        ### Affichage graphique des erreurs absolues (RMSE)
-        fig3 = px.scatter(df4, 
-                          x='Modèles', 
-                          y='Erreur RMSE', 
-                          title='Erreur de chaque modèle', 
-                          color='Erreur RMSE', 
-                          color_continuous_scale='RdYlGn_r')
-        fig3.update_traces(marker=dict(size=30),selector=dict(mode='markers'))
-        st.plotly_chart(fig3)           
-
-
-
-        st.subheader('Temps d\'entrainement des modèles sur l\'ensemble d\'entrainement')
-        ### Affichage graphique des temps d'entrainement
-        fig2 = px.bar(df2, 
-                      x='Modèles', 
-                      y='temps d\'entraînement', 
-                      title='Temps d\'entraînement de chaque modèle (en secondes)',
-                      color='temps d\'entraînement',
-                      color_continuous_scale='RdYlGn_r')
-
-        st.plotly_chart(fig2)
 
         if len(st.session_state['outputs']) > 1:
+
+            st.subheader('Erreurs relatives et absolues par variable sur l\'ensemble de test')
+
             df_erreurs = pd.DataFrame(data5)
             # Définir le nombre d'outputs
             n_outputs = len(df_erreurs['Erreur relative par output (en %)'][0])
@@ -315,9 +359,9 @@ with tab2:
                 axes[0].bar(np.arange(n_outputs) + idx*0.25, row['Erreur relative par output (en %)'], width=0.25, label=row['Modèles'])
 
             # Paramètres du graphique
-            axes[0].set_title("Erreur Relative par Output (en %)")
-            axes[0].set_xlabel("Outputs")
-            axes[0].set_ylabel("Erreur (%)")
+            axes[0].set_title("Erreur Relative par variable (en %)")
+            axes[0].set_xlabel("Variable à prédire")
+            axes[0].set_ylabel("MAPE (%)")
             axes[0].set_xticks(np.arange(n_outputs))
             axes[0].set_xticklabels([_ for _ in st.session_state['outputs']])
             axes[0].legend()
@@ -327,8 +371,8 @@ with tab2:
                 axes[1].bar(np.arange(n_outputs) + idx*0.25, row["Erreur RMSE par output"], width=0.25, label=row['Modèles'])
 
             # Paramètres du graphique
-            axes[1].set_title("Erreur RMSE par Output")
-            axes[1].set_xlabel("Outputs")
+            axes[1].set_title("Erreur RMSE par variable")
+            axes[1].set_xlabel("Variable à prédire")
             axes[1].set_ylabel("RMSE")
             axes[1].set_xticks(np.arange(n_outputs))
             #axes[1].set_xticklabels([f'Output {i+1}' for i in range(n_outputs)])
@@ -340,6 +384,20 @@ with tab2:
 
             # Afficher le graphique
             st.pyplot(fig)
+
+        st.subheader('Erreurs en valeurs relatives des modèles sur l\'ensemble de test')
+
+        Display_erreur_relative(df1)
+        
+        st.subheader('Erreurs en valeurs absolues des modèles sur l\'ensemble de test')
+        ### Affichage graphique des erreurs absolues (RMSE)
+        Display_erreur_absolu(df4)
+
+        st.subheader('Temps d\'entrainement des modèles sur l\'ensemble d\'entrainement')
+        ### Affichage graphique des temps d'entrainement
+        Display_temps_entrainement(df2)
+
+
 
 
             

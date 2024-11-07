@@ -38,6 +38,12 @@ from sklearn.model_selection import cross_val_score
 TF_ENABLE_ONEDNN_OPTS=0
 
 ############################################
+##       Displaying functions             ##
+############################################
+
+
+
+############################################
 ##         Data Cleaning Functions        ##
 ############################################
 
@@ -69,7 +75,7 @@ def create_random_forest():
                                            random_state=123))
     return random_forest
 
-def create_neural_network():
+def create_neural_network_32_16(): # (32, 16)
     neural_network = MLPRegressor(hidden_layer_sizes=(32, 16),
                                       activation="relu",
                                       solver="adam",
@@ -96,6 +102,63 @@ def create_catboost():
                                       loss_function='RMSE',
                                       random_state=123))
     return catboost
+
+### MAJ : Nouvelles fonctions de créations de modèles
+###   - réseaux de neurones avec diverses architectures -
+###       architecture constante : relu - adam - adaptative - lr_init 0.1
+###       architecture variable : (64, 64), (128, 64), (128, 128), (128, 64, 32)
+
+def create_neural_network_64_64(): # (64, 64)
+    neural_network = MLPRegressor(hidden_layer_sizes= (64, 64),
+                                      activation="relu",
+                                      solver="adam",
+                                      learning_rate="adaptive",
+                                      learning_rate_init=0.1,
+                                      alpha=0.0001,
+                                      early_stopping=True,
+                                      n_iter_no_change=50,
+                                      max_iter=1000,
+                                      random_state=123)
+    return neural_network
+
+def create_neural_network_128_64(): # (128, 64)
+    neural_network = MLPRegressor(hidden_layer_sizes= (128, 64),
+                                      activation="relu",
+                                      solver="adam",
+                                      learning_rate="adaptive",
+                                      learning_rate_init=0.1,
+                                      alpha=0.0001,
+                                      early_stopping=True,
+                                      n_iter_no_change=50,
+                                      max_iter=1000,
+                                      random_state=123)
+    return neural_network
+
+def create_neural_network_128_128(): # (128, 128)
+    neural_network = MLPRegressor(hidden_layer_sizes= (128, 128),
+                                      activation="relu",
+                                      solver="adam",
+                                      learning_rate="adaptive",
+                                      learning_rate_init=0.1,
+                                      alpha=0.0001,
+                                      early_stopping=True,
+                                      n_iter_no_change=50,
+                                      max_iter=1000,
+                                      random_state=123)
+    return neural_network
+
+def create_neural_network_128_64_32(): # (128, 64, 32)
+    neural_network = MLPRegressor(hidden_layer_sizes= (128, 64, 32),
+                                      activation="relu",
+                                      solver="adam",
+                                      learning_rate="adaptive",
+                                      learning_rate_init=0.1,
+                                      alpha=0.0001,
+                                      early_stopping=True,
+                                      n_iter_no_change=50,
+                                      max_iter=1000,
+                                      random_state=123)
+    return neural_network
 
 ############################################
 ##         Model Training Functions       ##
@@ -467,6 +530,8 @@ def launch_optim_nn():
         st.session_state['best_params'] = study.best_params
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
     
+
+    
   
 ### xgboost related functions
 def get_radar_xgboost_optim():
@@ -575,7 +640,7 @@ def objective_xgboost(trial):
 
 def launch_optim_xgboost():
                     ############# Progress bar test
-                    progress_text = "Operation in progress. Please wait."
+                    progress_text = "Calcul en cours. Veuillez patienter."
                     st.session_state['my_bar'] = st.progress(0, text=progress_text)
                     #############
                     st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
@@ -591,6 +656,7 @@ def launch_optim_xgboost():
                         st.session_state['my_bar'].empty()
                         #############
                         st.session_state['best_params'] = study.best_params
+                        st.write(type(study.best_params)) ### A Supprimer
                         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
                     
 
@@ -623,12 +689,17 @@ def launch_optim_random_forest():
     progress_text = "Calcul en cours. Veuillez patienter."
     st.session_state['my_bar'] = st.progress(0, text=progress_text)
     #############
-    st.session_state['range_n_estimators'] = st.session_state['slider_range_n_estimators']
-    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
-    st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split']
-    st.session_state['range_min_samples_leaf'] = st.session_state['slider_range_min_samples_leaf']
+    #st.session_state['range_n_estimators'] = st.session_state['slider_range_n_estimators']
+    #st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
+    #st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split']
+    #st.session_state['range_min_samples_leaf'] = st.session_state['slider_range_min_samples_leaf']
 
-    with st.spinner('Optimizing hyperparameters...'):
+    st.session_state['slider_range_n_estimators'] = st.session_state['range_n_estimators'] 
+    st.session_state['slider_range_max_depth'] = st.session_state['range_max_depth']
+    st.session_state['slider_range_min_samples_split'] = st.session_state['range_min_samples_split'] 
+    st.session_state['slider_range_min_samples_leaf'] = st.session_state['range_min_samples_leaf'] 
+
+    with st.spinner('Optimisation des hyperparamètres...'):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
         study.optimize(objective_random_forest, n_trials=st.session_state['nb_trials'])
         ############# Progress bar test
@@ -714,6 +785,7 @@ def get_radar_random_forest_optim():
                         showlegend=False)
 
     st.plotly_chart(fig_radar_optim)
+
 
 ### CatBoost related functions
 def get_radar_catboost_optim():
@@ -827,7 +899,7 @@ def launch_optim_catboost():
     st.session_state['range_subsample'] = st.session_state['slider_range_subsample']
     #st.session_state['nb_trials'] = nb_trial
 
-    with st.spinner('Optimizing hyperparameters...'):
+    with st.spinner('Optimisation des hyperparamètres...'):
         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
         study.optimize(objective_catboost, n_trials=st.session_state['nb_trials'])
         ## Progress bar 
@@ -837,32 +909,98 @@ def launch_optim_catboost():
         st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
 
 
-### Utilitary functions
+### Autres fonctions
+
 def liste_puissance_de_deux(min, max):
-    puissance = 1
+    """
+    Génère une liste des puissances de deux dans une plage spécifiée.
+
+    Cette fonction renvoie une liste contenant toutes les puissances de deux qui sont
+    comprises entre `min` (inclus si c'est une puissance de deux) et `max` (inclus
+    également si c'est une puissance de deux). Elle commence par trouver la première
+    puissance de deux supérieure ou égale à `min`, puis continue jusqu'à ce qu'elle
+    dépasse `max`.
+
+    Paramètres
+    ----------
+    min : int
+        La borne inférieure de la plage. La première puissance de deux trouvée sera
+        supérieure ou égale à ce nombre.
+    max : int
+        La borne supérieure de la plage. Aucune puissance de deux supérieure à ce
+        nombre ne sera ajoutée à la liste.
+
+    Retourne
+    -------
+    list
+        Une liste contenant les puissances de deux dans la plage spécifiée.
+
+    Exemple
+    -------
+    >>> liste_puissance_de_deux(5, 100)
+    [8, 16, 32, 64]
+    """
+
+    puissance = 1  # Initialisation de la première puissance de deux
+
+    # Trouver la première puissance de deux >= min
     while puissance < min:
         puissance *= 2
-    puissances = []
+
+    puissances = []  # Liste pour stocker les puissances de deux dans la plage
+
+    # Ajouter les puissances de deux jusqu'à atteindre ou dépasser 'max'
     while puissance <= max:
         puissances.append(puissance)
         puissance *= 2
 
     return puissances
 
-def dizaines(debut, fin):
-    dizaines_list = []
 
+def dizaines(debut, fin):
+    """
+    Génère une liste de nombres représentant les dizaines entre deux bornes spécifiées.
+
+    Cette fonction crée une liste de nombres qui correspondent aux dizaines entières
+    comprises entre `debut` et `fin`, inclusivement. Si `debut` est inférieur à 10, il
+    sera ajouté tel quel au début de la liste. Ensuite, la fonction continue à ajouter
+    les multiples de 10 jusqu'à atteindre ou dépasser `fin`.
+
+    Paramètres
+    ----------
+    debut : int
+        La borne de départ de la plage, qui peut être inférieure à 10.
+    fin : int
+        La borne de fin de la plage.
+
+    Retourne
+    -------
+    list
+        Une liste de nombres entiers correspondant aux dizaines dans la plage spécifiée.
+    
+    Exemple
+    -------
+    >>> dizaines(5, 35)
+    [5, 10, 20, 30]
+    """
+
+    dizaines_list = []  # Initialisation de la liste qui contiendra les dizaines
+
+    # Si 'debut' est inférieur à 10, on l'ajoute directement à la liste et on commence la dizaine suivante à 10
     if debut < 10:
         dizaines_list.append(debut)
         debut = 10
 
+    # Calcul de la première dizaine qui est supérieure ou égale à 'debut'
     dizaine = (debut // 10) * 10
     if dizaine < debut:
         dizaine += 10
 
+    # Boucle pour ajouter chaque multiple de 10 jusqu'à la borne 'fin'
     while dizaine <= fin:
         dizaines_list.append(dizaine)
         dizaine += 10
 
     return dizaines_list
+
 

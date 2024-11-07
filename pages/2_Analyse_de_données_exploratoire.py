@@ -4,7 +4,7 @@ from ut import *
 st.set_page_config(page_title='Exploratory Data Analysis', layout='wide')
 st.header('Exploratory Data Analysis')
 
-tab1, tab2, tab3 = st.tabs(['tab1','tab2','tab3'])
+tab1, tab2, tab3 = st.tabs(['Apercu général','Distribution des variables','matrice de correlation '])
 
 ##################################
 ##   tab1 : Caractéristiques    ##
@@ -58,8 +58,19 @@ with tab2:
 with tab3:
     if st.session_state.data is not None:
         
-        st.write('##')
-        st.markdown('<p class="section">Matrice de corrélation</p>', unsafe_allow_html=True)
+        
+
+
+        # Filtrer uniquement les colonnes numériques
+        numeric_data = st.session_state['data'].select_dtypes(include=['float64', 'int64'])
+
+        # Calculer la matrice de corrélation
+        corr_matrix = numeric_data.corr()
+
+        st.subheader("Matrice de corrélation des variables numériques")
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", square=True, cbar_kws={'shrink': .8}, ax=ax)
+        st.pyplot(fig)
 
     else :
         st.info('Veuillez charger un jeu de données')

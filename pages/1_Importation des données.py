@@ -38,174 +38,179 @@ if "separateur" not in st.session_state:
 if "file_details" not in st.session_state:
     st.session_state.file_details = ""
     
-col1_1, b_1, col2_1 = st.columns((1, 0.1, 1))
-col1, b, col2 = st.columns((2.7, 0.2, 1))
 
 ##########################################
 ####    En tête de la page Dataset    ####
 ##########################################
 
+uploaded_file = st.file_uploader("", type=['csv','xlsx'],accept_multiple_files=False)
+
+df = None
+if uploaded_file is not None :
+    try:
+        st.session_state['data'] = pd.read_excel(uploaded_file)
+    except:
+        try:
+            st.session_state['data'] = pd.read_csv(uploaded_file)
+        except:
+            st.error("Erreur lors du chargement du fichier")
+
+
+st.session_state['uploaded'] = 0  
+if st.session_state['data'] is not None:
+    st.session_state.file_details = {
+                                        "FileType": st.session_state['data'].attrs,
+                                        "FileSize": st.session_state['data'].size
+                                        }
+    st.success('Fichier chargé avec succès !')
+    st.session_state['uploaded'] = 1
+
+    
+    
+    if sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) > 0:
+        st.warning("Attention, il y a des valeurs manquantes dans le dataset. Elles ont été retirées.") #retirés / retirées ?
+        df = st.session_state['data'].dropna()
+        st.session_state['data'] = df
+        st.write(' - Taille après suppression des valeurs manquantes:', st.session_state['data'].shape[0], 'lignes')
+        #st.info(sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()))
+    else:
+        st.write(' - Taille:', st.session_state['data'].shape[0], 'lignes')
+
+    st.markdown('<p class="section">Aperçu du jeu de données</p>', unsafe_allow_html=True)
+    st.dataframe(st.session_state['data'].head())
+
+
+col1_1, b_1, col2_1 = st.columns((1, 0.1, 1))
+col1, b, col2 = st.columns((2.7, 0.2, 1))
+
 
 dataset_choix = "Choisir un dataset personnel"
 if dataset_choix == "Choisir un dataset personnel":
-    with col1_1:
+    
 
-        uploaded_file = st.file_uploader("", type=['csv','xlsx'],accept_multiple_files=False)
+    #####################################
+    ##     Choix Inputs / Outputs      ##
+    #####################################
 
-        df = None
-        if uploaded_file is not None :
-            try:
-                st.session_state['data'] = pd.read_excel(uploaded_file)
-            except:
-                try:
-                    st.session_state['data'] = pd.read_csv(uploaded_file)
-                except:
-                    st.error("Erreur lors du chargement du fichier")
+
+    #st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
+
+    if st.session_state['uploaded'] == 1:
+        with col1_1:
+            ### Récupérer les labels des input et outputs 
+            features = st.session_state['data'].columns
+            liste = [str(_) for _ in features]
+
+            # Background color for multiselect options
+            colorize_multiselect_options("darkcyan")
+            
+            st.subheader("Choix des variables d'entrées")
+            # inputs
+            inputs = st.multiselect(label="Quelles sont les variables quantitatives:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
+            
+            # Variables qualitatives
+            if inputs is not None:
+                one_hot_labels = st.multiselect(label="Quelles sont les variables qualitatives ?", options=liste, placeholder='Laissez vide si aucune')
+
+                
+            st.subheader("Choix des variables de sorties")        
+            # outputs
+            outputs = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
+
+    
+            ##########################################
+            ##    Initialisation des variables      ##
+            ##########################################
+
+            if st.button("Valider la saisie"):
+                
+                st.session_state['inputs'] = inputs
+                st.session_state['outputs'] = outputs
+                
+                st.session_state['one_hot_labels'] = one_hot_labels
+                st.info('Variables qualitatives :'+str(st.session_state['one_hot_labels']))
+                if len(st.session_state['one_hot_labels']) > 0:
+                    st.session_state['all_inputs'] = inputs + one_hot_labels
+
+                else :
+                    st.session_state['all_inputs'] = inputs
+
+                # Séparer X et y
+                st.session_state['X_num'], st.session_state['y'] = split_input_output(st.session_state.data, 
+                                                                                st.session_state['inputs'], 
+                                                                                st.session_state['outputs'])
+                
+
+                
+                # Créer des données scalées ( Créer les variables seesion_state 'scaler_X' et 'scaler_y')
+                st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X_num'], 
+                                                                                        st.session_state['y'])
+
+                def get_labeled_data_fit_transform(input_data, labels):
+                    encoder = OneHotEncoder()
+                    X_encoded = encoder.fit_transform(input_data[labels])
+                    X_encoded = X_encoded.toarray()
+                    l = []
+                    for _ in encoder.categories_:
+                        l.append(np.array(_))
+
+                    col = np.concatenate(l, axis=0)
+                    X_encoded_df = pd.DataFrame(X_encoded, columns=col)
+                    st.session_state['encoder'] = encoder
+                    return X_encoded_df
+
+                
+                
+
+                if len(st.session_state['one_hot_labels']) > 0:
+                    st.session_state['X_labeled'] = get_labeled_data_fit_transform(st.session_state['data'], st.session_state['one_hot_labels'])
+                    st.session_state['X_scaled'] = np.concatenate((st.session_state['X_scaled'], st.session_state['X_labeled']), axis=1)
+                    st.session_state['X'] = np.concatenate((st.session_state['X_num'], st.session_state['X_labeled']), axis=1)
+
+                elif len(st.session_state['one_hot_labels']) == 0:
+                    st.session_state['X'] = st.session_state['X_num']
+
+
+                
+                X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], 
+                                                                    st.session_state['y'], 
+                                                                    test_size=0.15, 
+                                                                    random_state=3)
+                
+                X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled = train_test_split(st.session_state['X_scaled'],
+                                                                                                st.session_state['y_scaled'],
+                                                                                                test_size=0.15,
+                                                                                                random_state=3)
+                
+                
+                
+                # st.session_state['X_scaled'] généré dans ut.py
+                # st.session_state['y_scaled'] généré dans ut.py
+                st.session_state['X_train'] = X_train
+                st.session_state['X_test'] = X_test
+                st.session_state['y_train'] = y_train
+                st.session_state['y_test'] = y_test
+                st.session_state['X_train_scaled'] = X_train_scaled
+                st.session_state['X_test_scaled'] = X_test_scaled
+                st.session_state['y_train_scaled'] = y_train_scaled
+                st.session_state['y_test_scaled'] = y_test_scaled
+
+
+
+                st.success('Data preparation done')
 
         
-        st.session_state['uploaded'] = 0  
-        if st.session_state['data'] is not None:
-            st.session_state.file_details = {
-                                             "FileType": st.session_state['data'].attrs,
-                                             "FileSize": st.session_state['data'].size
-                                             }
-            st.success('Fichier chargé avec succès !')
-            st.session_state['uploaded'] = 1
 
-            
-            
-            if sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) > 0:
-                st.warning("Attention, il y a des valeurs manquantes dans le dataset. Elles ont été retirées.") #retirés / retirées ?
-                df = st.session_state['data'].dropna()
-                st.session_state['data'] = df
-                st.write(' - Taille après suppression des valeurs manquantes:', st.session_state['data'].shape[0], 'lignes')
-                #st.info(sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()))
-            else:
-                st.write(' - Taille:', st.session_state['data'].shape[0], 'lignes')
+        with col2_1:
 
-            st.markdown('<p class="section">Aperçu du jeu de données</p>', unsafe_allow_html=True)
-            st.dataframe(st.session_state['data'].head())
-
-
-
-            #####################################
-            ##     Choix Inputs / Outputs      ##
-            #####################################
-
-            st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
-
-            if st.session_state['uploaded'] == 1:
-                ### Récupérer les labels des input et outputs 
-                features = st.session_state['data'].columns
-                liste = [str(_) for _ in features]
-
-                # Background color for multiselect options
-                colorize_multiselect_options("darkcyan")
-                
-                st.subheader("Choix des variables d'entrées")
-                # inputs
-                inputs = st.multiselect(label="Quelles sont les variables quantitatives:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
-                
-                # Variables qualitatives
-                if inputs is not None:
-                    one_hot_labels = st.multiselect(label="Quelles sont les variables qualitatives ?", options=liste, placeholder='Laissez vide si aucune')
-
-                    
-                st.subheader("Choix des variables de sorties")        
-                # outputs
-                outputs = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
-
-                ## A Supprimer ##################
-                #inputs = ['x1', 'x2', 'x3']
-                #outputs = ['y']
-                #inputs = ['x1', 'x2', 'x3']
-                #outputs = ['y1', 'y2', 'y3', 'y4']
-                #st.write('Salut Kilian,pour les multi outputs valide simplement la saisie pour passer à l\'étape suivante et ne t\'embetes pas')
-                #################################
-
-                ##########################################
-                ##    Initialisation des variables      ##
-                ##########################################
-
-                if st.button("Valider la saisie"):
-                    
-                    st.session_state['inputs'] = inputs
-                    st.session_state['outputs'] = outputs
-                    
-                    st.session_state['one_hot_labels'] = one_hot_labels
-                    st.info('one hot labels :'+str(st.session_state['one_hot_labels']))
-                    if len(st.session_state['one_hot_labels']) > 0:
-                        st.session_state['all_inputs'] = inputs + one_hot_labels
-
-                    else :
-                        st.session_state['all_inputs'] = inputs
-
-                    # Séparer X et y
-                    st.session_state['X_num'], st.session_state['y'] = split_input_output(st.session_state.data, 
-                                                                                      st.session_state['inputs'], 
-                                                                                      st.session_state['outputs'])
-                    
-
-                    
-                    # Créer des données scalées ( Créer les variables seesion_state 'scaler_X' et 'scaler_y')
-                    st.session_state['X_scaled'], st.session_state['y_scaled'] = scale_data(st.session_state['X_num'], 
-                                                                                            st.session_state['y'])
-
-                    def get_labeled_data_fit_transform(input_data, labels):
-                        encoder = OneHotEncoder()
-                        X_encoded = encoder.fit_transform(input_data[labels])
-                        X_encoded = X_encoded.toarray()
-                        l = []
-                        for _ in encoder.categories_:
-                            l.append(np.array(_))
-
-                        col = np.concatenate(l, axis=0)
-                        X_encoded_df = pd.DataFrame(X_encoded, columns=col)
-                        st.session_state['encoder'] = encoder
-                        return X_encoded_df
-
-                    
-                    
-
-                    if len(st.session_state['one_hot_labels']) > 0:
-                        st.session_state['X_labeled'] = get_labeled_data_fit_transform(st.session_state['data'], st.session_state['one_hot_labels'])
-                        st.session_state['X_scaled'] = np.concatenate((st.session_state['X_scaled'], st.session_state['X_labeled']), axis=1)
-                        st.session_state['X'] = np.concatenate((st.session_state['X_num'], st.session_state['X_labeled']), axis=1)
-
-                    elif len(st.session_state['one_hot_labels']) == 0:
-                        st.session_state['X'] = st.session_state['X_num']
-
-
-                    
-                    X_train, X_test, y_train, y_test = train_test_split(st.session_state['X'], 
-                                                                        st.session_state['y'], 
-                                                                        test_size=0.15, 
-                                                                        random_state=3)
-                    
-                    X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled = train_test_split(st.session_state['X_scaled'],
-                                                                                                    st.session_state['y_scaled'],
-                                                                                                    test_size=0.15,
-                                                                                                    random_state=3)
-                    
-                    
-                    
-                    # st.session_state['X_scaled'] généré dans ut.py
-                    # st.session_state['y_scaled'] généré dans ut.py
-                    st.session_state['X_train'] = X_train
-                    st.session_state['X_test'] = X_test
-                    st.session_state['y_train'] = y_train
-                    st.session_state['y_test'] = y_test
-                    st.session_state['X_train_scaled'] = X_train_scaled
-                    st.session_state['X_test_scaled'] = X_test_scaled
-                    st.session_state['y_train_scaled'] = y_train_scaled
-                    st.session_state['y_test_scaled'] = y_test_scaled
-
-
-
-                    st.success('Data preparation done')
-
-            
-
+            st.subheader('Explication :')
+            st.write('Pour réaliser des entraînements de modèles de machine learning, il est essentiel de diviser les variables en deux catégories :')
+            st.write('  - Les variables d\'entrée (ou features) qui servent à guider le modèle en lui fournissant les informations nécessaires pour apprendre les relations entre les données et les résultats attendus.')
+            st.write('  - Les variables de sortie (ou target) qui représentent les réponses ou les valeurs à prédire par le modèle, constituant l’objectif de l’apprentissage supervisé.')
+            st.write('\n')
+            st.write('On peut diviser les variables d\'entrée en deux catégories :')
+            st.write('  - Les variables quantitatives, qui sont numériques et permettent de représenter des valeurs mesurables (comme l\'âge, le salaire, ou la température).')
+            st.write('  - Les variables qualitatives, qui sont catégorielles et servent à représenter des informations discrètes ou des classes (comme le genre, la catégorie d\'un produit, ou l\'état civil).')
                     
     
 
@@ -241,12 +246,15 @@ if dataset_choix == "Choisir un dataset personnel":
                 option_col_update = st.session_state.data.columns.tolist()
 
             with col1_1:
-                st.write('col1_1')
+                #st.write('col1_1')
+                pass
 
             with col2_1:
-                st.write('col2_1')
+                pass
+                #st.write('col2_1')
             with col3_1:
-                st.write('col3_1')
+                pass
+                #st.write('col3_1')
             with col1_1:
                 if st.session_state.data is not None:
                     st.session_state.drop_col = st.multiselect(label='Retirer des colonnes',
