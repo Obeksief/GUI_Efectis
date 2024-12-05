@@ -11,35 +11,29 @@ Ce projet consiste en une interface graphique (GUI) intuitive qui permet aux uti
 - [ ] Par défaut ne mettre aucune variable dans la case "Variable quantiatives"
 - [ ] Faire une video tutoriel
 
-## Prérequis
-- Python 3.11 
 
-## Installation d'un environnement virtuel avec venv
+
+## Lancer localement : Installation d'un environnement virtuel avec venv
+
+### Prérequis
+- Python 3.11 
 
 Pour les systèmes Unix/MacOS :  
 ```python3 -m venv env```  
 Pour Windows  
 ```python -m venv env```  
 
-# Pour les systèmes Unix/MacOS
+### Pour les systèmes Unix/MacOS
 ```source env/bin/activate```
 
-# Pour Windows
+### Pour Windows
 
 ```.\env\Scripts\activate```
 
-# Installer les packages
+### Installer les packages
 ```pip install -r requirements.txt```
 
 
-# Utilisation 
+### Utilisation 
 Ouvrir le terminal et entrer la commande suivante :
 ```Streamlit run [chemin\jusqu'au\fichier]\app.py```
-
-***
-
----
-
-___
-
-[Google](https://www.google.com)
