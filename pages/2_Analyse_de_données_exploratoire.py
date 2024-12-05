@@ -43,7 +43,7 @@ with tab2:
             with st.container():
                 fig =plt.figure(figsize=(8, 6))
                 sns.histplot(data=st.session_state.data, x=st.session_state.data[column], kde=False, bins=100) 
-                plt.title(f'Distribution de {column}')
+                plt.title(f'Distribution de la variable \"{column}\" ')
                 plt.xlabel(column)
                 plt.ylabel('Fréquence')
                 st.pyplot(fig)

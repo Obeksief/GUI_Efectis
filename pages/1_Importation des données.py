@@ -128,7 +128,7 @@ if dataset_choix == "Choisir un dataset personnel":
                 st.session_state['outputs'] = outputs
                 
                 st.session_state['one_hot_labels'] = one_hot_labels
-                st.info('Variables qualitatives :'+str(st.session_state['one_hot_labels']))
+                #st.info('Variables qualitatives :'+str(st.session_state['one_hot_labels']))
                 if len(st.session_state['one_hot_labels']) > 0:
                     st.session_state['all_inputs'] = inputs + one_hot_labels
 
