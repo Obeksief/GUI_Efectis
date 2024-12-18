@@ -10,6 +10,8 @@ Ce projet consiste en une interface graphique (GUI) intuitive qui permet aux uti
 - [ ] Faire un graphique par output car les graphiques d'erreurs sont surchargés et illisibles
 - [ ] Par défaut ne mettre aucune variable dans la case "Variable quantiatives"
 - [ ] Faire une video tutoriel
+- [ ] Ajouter méthode de clustering pour faire un modèle par cluster
+- [ ] Ajout de traitement des données temporelles 
 
 
 
