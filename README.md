@@ -13,6 +13,7 @@ Ce projet consiste en une interface graphique (GUI) intuitive qui permet aux uti
 - [ ] Ajouter méthode de clustering pour faire un modèle par cluster
 - [ ] Ajout de traitement des données temporelles
 - [ ] Ajouter de KAN
+- [ ] Ajouter transformation de série temporelle en données de regression
 
 
 
