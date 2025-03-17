@@ -9,11 +9,6 @@ scikit_learn==1.5.2
 seaborn==0.13.2
 streamlit==1.36.0
 tensorflow==2.16.2
-tensorflow_intel==2.16.2
 xgboost==2.1.1
-<<<<<<< HEAD
-plotly==5.20.0
-=======
 openpyxl==3.1.5
 
->>>>>>> 1a8a1ae6836b88525dd312133e702d8d9ed79fe2
