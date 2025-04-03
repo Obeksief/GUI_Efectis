@@ -14,6 +14,8 @@ Ce projet consiste en une interface graphique (GUI) intuitive qui permet aux uti
 - [ ] Ajout de traitement des données temporelles
 - [ ] Ajouter de KAN
 - [ ] Ajouter transformation de série temporelle en données de regression
+- [ ] Développement d’un outil de clustering : fin avril
+- [ ] Développement de méthodes de régressions variables entrée/sortie (modèle KAN ou autre)  : fin mai
 
 
 
