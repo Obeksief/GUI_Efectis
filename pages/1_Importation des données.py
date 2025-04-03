@@ -43,17 +43,20 @@ if "file_details" not in st.session_state:
 ####    En tête de la page Dataset    ####
 ##########################################
 
+st.session_state['separateur_de_champs_data'] = st.text_input(label = 'Caractère de séparateur de champs dans le dataset', value=";")
+st.session_state['encoding'] = st.text_input(label = 'Encoding', value="latin1")
 uploaded_file = st.file_uploader("", type=['csv','xlsx'],accept_multiple_files=False)
 
 df = None
 if uploaded_file is not None :
     try:
-        st.session_state['data'] = pd.read_excel(uploaded_file)
+        st.session_state['data'] = pd.read_csv(uploaded_file,
+                                                   encoding=st.session_state['encoding'], 
+                                                   sep = st.session_state['separateur_de_champs_data']
+                                                  )
     except:
-        try:
-            st.session_state['data'] = pd.read_csv(uploaded_file)
-        except:
-            st.error("Erreur lors du chargement du fichier")
+        st.error("Erreur lors du chargement du fichier")
+            
 
 
 st.session_state['uploaded'] = 0  
