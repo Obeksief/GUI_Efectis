@@ -48,6 +48,17 @@ with tab2:
                 plt.ylabel('Fréquence')
                 st.pyplot(fig)
 
+        st.subheader('Visualisation des données')
+        st.write("Sélectionner les colonnes à afficher :")
+        cols = st.multiselect('Sélectionner les colonnes', st.session_state['data'].columns.tolist())
+        if len(cols) > 0:
+            if len(cols) == 1:
+                fig = px.histogram(st.session_state['data'], x=cols[0])
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                fig = px.scatter_matrix(st.session_state['data'], dimensions=cols, color=cols[0])
+                st.plotly_chart(fig, use_container_width=True)
+
     else :
         st.info('Veuillez charger un jeu de données')
 

@@ -55,7 +55,13 @@ if uploaded_file is not None :
                                                    sep = st.session_state['separateur_de_champs_data']
                                                   )
     except:
-        st.error("Erreur lors du chargement du fichier")
+        try:
+            st.session_state['data'] = pd.read_excel(uploaded_file, 
+                                                     engine='openpyxl', 
+                                                     sep = st.session_state['separateur_de_champs_data'])
+        except:
+            
+            st.error("Erreur lors du chargement du fichier")
             
 
 
