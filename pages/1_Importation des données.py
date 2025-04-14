@@ -124,8 +124,8 @@ if dataset_choix == "Choisir un dataset personnel":
                 
             st.subheader("Choix des variables de sorties")        
             # outputs
-            outputs = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
-
+            st.session_state['outputs_labels'] = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
+            outputs = st.session_state['outputs_labels']
     
             ##########################################
             ##    Initialisation des variables      ##

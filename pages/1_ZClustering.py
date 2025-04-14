@@ -77,18 +77,15 @@ with tab1:
             elif display_type == '2':
                 data = st.session_state['outputs']
 
-                st.write("Sélectionner les colonnes à afficher :")
-                
-                
-               
-                st.write(series_cols)
-                st.dataframe(data)
 
-                if len(series_cols) > 0:
+                
+            
+
+                if len(data) > 0:
                     fig = px.line(
-                        data,
-                        x=time_col,
-                        y=data,
+                        st.session_state['outputs'],
+                        x=st.session_state['outputs_labels'],
+                        y='value',
                         title="Série(s) temporelle(s)",
                         width=900,
                         height=600
