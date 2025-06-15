@@ -94,6 +94,7 @@ with tab2:
         st.session_state['temps_max'] = st.number_input('Temps maximum d\'entrainement (en secondes)', min_value=10, max_value=10000, value=300)
         st.session_state['mape_tolerance'] = st.number_input('Arrêt anctipé, tolérance d\'eurreur en (%)', min_value=0, max_value=100, value=10)
 
+    # colo_2 :: Information et documentation
     with colo_2:
 
         st.write('Sur cette page, vous pouvez optimiser les hyperparamètres de différents modèles de machine learning afin d\'améliorer leurs performances sur vos données. Trois éléments principaux sont à paramétrer pour réaliser cette optimisation :')
@@ -110,11 +111,13 @@ with tab2:
         col_1, col_2 = st.columns([1,1])
         
         with col_1:
+            # Paramétrages de base
             st.session_state['range_nbr_estimateurs'] = [50, 2000]
             st.session_state['range_max_depth'] = [2, 15]
             st.session_state['range_eta'] = [0.001, 0.5]
             st.session_state['range_min_child_weight'] = [1,3]
 
+            # Choix utilisateurs 
             st.session_state['slider_range_nbr_estimateurs'] = st.session_state['range_nbr_estimateurs']
             st.session_state['slider_range_max_depth'] = st.session_state['range_max_depth']
             st.session_state['slider_range_eta'] = st.session_state['range_eta']

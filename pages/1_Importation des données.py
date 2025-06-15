@@ -22,30 +22,30 @@ st.header("Choix des données d\'entrainement")
 #if 'data' in st.session_state:
         #del st.session_state.data
 
-if 'data' not in st.session_state:
+if 'data' not in st.session_state:                            # Prend le dataset 
     st.session_state.data = None
-
 if "drop_col" not in st.session_state:
     st.session_state.drop_col = ""
-if "col_to_time" not in st.session_state:
-    st.session_state.col_to_time = ""
-if "col_to_float_money" not in st.session_state:
-    st.session_state.col_to_float_money = ""
-if "col_to_float_coma" not in st.session_state:
-    st.session_state.col_to_float_coma = ""
-if "separateur" not in st.session_state:
-    st.session_state.separateur = ""
-if "file_details" not in st.session_state:
-    st.session_state.file_details = ""
-    
+if "outputs_labels" not in st.session_state:                  # Prend les labels des outputs
+    st.session_state.outputs_labels = ""
+if "inputs_labels" not in st.session_state:                   # Prend les labels des inputs
+    st.session_state.inputs_labels = ""
+if 'separateur_de_champs_data' not in st.session_state:       # Prend le séparateur de champs
+    st.session_state['separateur_de_champs_data'] = ""
+if 'encoding' not in st.session_state:                        # Prend l'encodage
+    st.session_state['encoding'] = ""
+if 'uploaded' not in st.session_state:                        # Prend le booléen pour savoir si le fichier est chargé
+    st.session_state['uploaded'] = 0
+
 
 ##########################################
 ####    En tête de la page Dataset    ####
 ##########################################
 
 st.session_state['separateur_de_champs_data'] = st.text_input(label = 'Caractère de séparateur de champs dans le dataset', value=";")
-st.session_state['encoding'] = st.text_input(label = 'Encoding', value="latin1")
-uploaded_file = st.file_uploader("", type=['csv','xlsx'],accept_multiple_files=False)
+# st.session_state['encoding'] = st.multiselect('Encoding', options = ["latin1", "utf8"], default = "latin1")
+st.session_state['encoding'] = st.selectbox('Encoding', options = ["latin1", "UTF-8"], index = 0)
+uploaded_file = st.file_uploader("", type=['csv','xlsx'], accept_multiple_files=False)
 
 df = None
 if uploaded_file is not None :
@@ -58,23 +58,20 @@ if uploaded_file is not None :
         try:
             st.session_state['data'] = pd.read_excel(uploaded_file, 
                                                      engine='openpyxl', 
-                                                     sep = st.session_state['separateur_de_champs_data'])
+                                                     #sep = st.session_state['separateur_de_champs_data']
+                                                     )
         except:
-            
-            st.error("Erreur lors du chargement du fichier")
+            try: 
+                st.session_state['data'] = pd.read_csv(uploaded_file,
+                                                                        )
+            except:
+                st.error("Erreur lors du chargement du fichier")
             
 
-
-st.session_state['uploaded'] = 0  
 if st.session_state['data'] is not None:
-    st.session_state.file_details = {
-                                        "FileType": st.session_state['data'].attrs,
-                                        "FileSize": st.session_state['data'].size
-                                        }
     st.success('Fichier chargé avec succès !')
     st.session_state['uploaded'] = 1
 
-    
     
     if sum(pd.DataFrame(st.session_state.data).isnull().sum(axis=1).tolist()) > 0:
         st.warning("Attention, il y a des valeurs manquantes dans le dataset. Elles ont été retirées.") #retirés / retirées ?
@@ -96,26 +93,21 @@ col1, b, col2 = st.columns((2.7, 0.2, 1))
 dataset_choix = "Choisir un dataset personnel"
 if dataset_choix == "Choisir un dataset personnel":
     
-
     #####################################
     ##     Choix Inputs / Outputs      ##
     #####################################
-
-
-    #st.markdown("<p class='petite_section'>Choix des entrées et sorties : </p>", unsafe_allow_html=True)
 
     if st.session_state['uploaded'] == 1:
         with col1_1:
             ### Récupérer les labels des input et outputs 
             features = st.session_state['data'].columns
             liste = [str(_) for _ in features]
-
-            # Background color for multiselect options
+            
             colorize_multiselect_options("darkcyan")
             
             st.subheader("Choix des variables d'entrées")
             # inputs
-            inputs = st.multiselect(label="Quelles sont les variables quantitatives:", options=liste, default=liste, placeholder='Chosir les variables d\'entrées')
+            inputs = st.multiselect(label="Quelles sont les variables quantitatives:", options=liste, default=liste[:6], placeholder='Chosir les variables d\'entrées')
             
             # Variables qualitatives
             if inputs is not None:
@@ -125,7 +117,7 @@ if dataset_choix == "Choisir un dataset personnel":
             st.subheader("Choix des variables de sorties")        
             # outputs
             st.session_state['outputs_labels'] = st.multiselect('Qulles sont les variables à prédire :', liste, placeholder='Chosir les variables à prédire')
-            outputs = st.session_state['outputs_labels']
+            outputs_labels = st.session_state['outputs_labels']
     
             ##########################################
             ##    Initialisation des variables      ##
@@ -134,7 +126,8 @@ if dataset_choix == "Choisir un dataset personnel":
             if st.button("Valider la saisie"):
                 
                 st.session_state['inputs'] = inputs
-                st.session_state['outputs'] = outputs
+                st.write('Inputs :', st.session_state['inputs'])
+                st.session_state['outputs'] = st.session_state['data'][outputs_labels].columns.tolist()
                 
                 st.session_state['one_hot_labels'] = one_hot_labels
                 #st.info('Variables qualitatives :'+str(st.session_state['one_hot_labels']))
@@ -271,21 +264,10 @@ if dataset_choix == "Choisir un dataset personnel":
                                                            )
 
             with col1_1:
-                for col in st.session_state["col_to_time"]:
-                    try:
-                        st.session_state.data[col] = pd.to_datetime(st.session_state.data[col])
-                        st.success("Transformation de " + col + " effectuée !")
-                    except:
-                        st.error("Transformation impossible ou déjà effectuée")
+                pass
 
             with col3_1:
-                for col in st.session_state.col_to_float_coma:
-                    try:
-                        st.session_state.data[col] = st.session_state.data[col].apply(
-                            lambda x: float(str(x).replace(',', '.')))
-                        st.success("Transformation de " + col + " effectuée !")
-                    except:
-                        st.error("Transformation impossible ou déjà effectuée")
+                pass
             with col1_1:
                 for col in st.session_state["drop_col"]:
                     try:

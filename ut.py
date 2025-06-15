@@ -651,7 +651,9 @@ def launch_optim_xgboost():
 
                     with st.spinner('Optimisation des hyperparamètres...'):
                         study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_xgboost, n_trials=st.session_state['nb_trials'])
+                        study.optimize(objective_xgboost,
+                                       n_trials=st.session_state['nb_trials'],
+                                       timeout = st.session_state['temps_max'])
                         ############# Progress bar test
                         st.session_state['my_bar'].empty()
                         #############

@@ -49,4 +49,5 @@ Pour Windows
 
 ### Utilisation 
 Ouvrir le terminal et entrer la commande suivante :
-```Streamlit run [chemin\jusqu'au\fichier]\app.py```
+```conda activate tf_env```
+```Streamlit run [chemin\jusqu'au\fichier]\app.py --server.port 8088``` 
