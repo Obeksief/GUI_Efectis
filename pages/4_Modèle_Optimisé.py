@@ -340,8 +340,8 @@ with tab3:
                                            st.session_state['scaler_X'], 
                                            st.session_state['scaler_y'],
                                            st.session_state['encoder'], 
-                                             st.session_state['all_inputs'],
-                                                st.session_state['outputs'],
+                                           st.session_state['all_inputs'],
+                                           st.session_state['outputs'],
                                            st.session_state['type_model'])
                 else:
                     

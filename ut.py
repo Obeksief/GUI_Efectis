@@ -483,56 +483,65 @@ def get_radar_nn_slider():
     st.plotly_chart(fig_radar)
 
 def objective_nn(trial):  
-    
     range_layer_1 = liste_puissance_de_deux(st.session_state['slider_range_first_layer'][0], st.session_state['slider_range_first_layer'][1])
     range_layer_2 = liste_puissance_de_deux(st.session_state['slider_range_second_layer'][0], st.session_state['slider_range_second_layer'][1])
     range_batch_size = dizaines(st.session_state['slider_range_batch_size'][0], st.session_state['slider_range_batch_size'][1])
+    
     first_layer = trial.suggest_categorical('first_layer', range_layer_1)
     second_layer = trial.suggest_categorical('second_layer', range_layer_2)
     batch_size = trial.suggest_categorical('batch_size', range_batch_size)
 
-    model = MLPRegressor(hidden_layer_sizes=[first_layer, second_layer],
-                         batch_size=batch_size,
-                            activation='relu',
-                            solver='adam',
-                            alpha=0.0001,
-                            learning_rate='adaptive',
-                            learning_rate_init=0.1,
-                            beta_1=0.9,
-                            beta_2=0.999,
-                            max_iter=st.session_state['nb_epoch'],
-                            validation_fraction=0.15,
-                            early_stopping=True,
-                            tol=0.0001,
-                            n_iter_no_change=20)
-    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
+    model = MLPRegressor(
+        hidden_layer_sizes=[first_layer, second_layer],
+        batch_size=batch_size,
+        activation='relu',
+        solver='adam',
+        alpha=0.0001,
+        learning_rate='adaptive',
+        learning_rate_init=0.1,
+        beta_1=0.9,
+        beta_2=0.999,
+        max_iter=st.session_state['nb_epoch'],
+        validation_fraction=0.15,
+        early_stopping=True,
+        tol=0.0001,
+        n_iter_no_change=20
+    )
 
-    ############# Progress bar test
-    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
-    #############
-    
+    score = cross_val_score(
+        model,
+        st.session_state['X_scaled'],
+        st.session_state['y'],
+        cv=3,
+        scoring='neg_mean_squared_error'
+    )
 
-    return score.mean()
+    return score.mean() 
 
 def launch_optim_nn():
-    ############# Progress bar test
     progress_text = "Calcul en cours. Veuillez patienter."
     st.session_state['my_bar'] = st.progress(0, text=progress_text)
-    #############
-    
+
+    start_time = time.time()
+    max_time = st.session_state['temps_max']
 
     with st.spinner('Optimisation des hyperparamètres...'):
-        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-        study.optimize(objective_nn, n_trials=st.session_state['nb_trials'])
-        ############# Progress bar test
-        st.session_state['my_bar'].empty()
-        #############
-        st.session_state['best_params'] = study.best_params
-        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
+
+        def timed_objective(trial):
+            elapsed = time.time() - start_time
+            progress = min(elapsed / max_time, 1.0)
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return objective_nn(trial)
+
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+        study.optimize(timed_objective, n_trials=st.session_state['nb_trials'], timeout=max_time)
+
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
     
 
     
-  
 ### xgboost related functions
 def get_radar_xgboost_optim():
     a_scaled = (st.session_state['best_params']['n_estimators'] -20)/(500-20)
@@ -622,15 +631,19 @@ def objective_xgboost(trial):
     n_estimators = trial.suggest_int('n_estimators', st.session_state['range_nbr_estimateurs'][0], st.session_state['range_nbr_estimateurs'][1])
     max_depth = trial.suggest_int('max_depth', st.session_state['range_max_depth'][0], st.session_state['range_max_depth'][1])
     eta = trial.suggest_float('eta', st.session_state['range_eta'][0], st.session_state['range_eta'][1])
-    min_child_weight = trial.suggest_int('min_child_weight', st.session_state['range_min_child_weight'][0]  , st.session_state['range_min_child_weight'][1])
+    min_child_weight = trial.suggest_int('min_child_weight', st.session_state['range_min_child_weight'][0], st.session_state['range_min_child_weight'][1])
 
-    model = MultiOutputRegressor(xgb.XGBRegressor(n_estimators=n_estimators,
+    model = MultiOutputRegressor(xgb.XGBRegressor(
+                             n_estimators=n_estimators,
                              max_depth=max_depth,
                              eta=eta,
                              min_child_weight=min_child_weight,
                              random_state=123))
 
-    score = cross_val_score(model, st.session_state['X_train_scaled'], st.session_state['y_train_scaled'], cv=3, scoring='neg_mean_squared_error')
+    score = cross_val_score(model, st.session_state['X_train_scaled'], 
+                            st.session_state['y_train_scaled'], 
+                            cv=3, 
+                            scoring='neg_mean_squared_error')
 
     ############# Progress bar test
     st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
@@ -639,77 +652,38 @@ def objective_xgboost(trial):
     return score.mean()
 
 def launch_optim_xgboost():
-                    ############# Progress bar test
-                    progress_text = "Calcul en cours. Veuillez patienter."
-                    st.session_state['my_bar'] = st.progress(0, text=progress_text)
-                    #############
-                    st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
-                    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
-                    st.session_state['range_eta'] = st.session_state['slider_range_eta']
-                    st.session_state['range_min_child_weight'] = st.session_state['slider_range_min_child_weight']
-
-
-                    with st.spinner('Optimisation des hyperparamètres...'):
-                        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-                        study.optimize(objective_xgboost,
-                                       n_trials=st.session_state['nb_trials'],
-                                       timeout = st.session_state['temps_max'])
-                        ############# Progress bar test
-                        st.session_state['my_bar'].empty()
-                        #############
-                        st.session_state['best_params'] = study.best_params
-                        st.write(type(study.best_params)) ### A Supprimer
-                        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-                    
-
-
-### Random Forest related functions
-def objective_random_forest(trial):
-    n_estimators = trial.suggest_int('n_estimators', st.session_state['range_n_estimators'][0], st.session_state['range_n_estimators'][1])
-    max_depth = trial.suggest_int('max_depth', st.session_state['range_max_depth'][0], st.session_state['range_max_depth'][1])
-    min_samples_split = trial.suggest_int('min_samples_split', st.session_state['range_min_samples_split'][0], st.session_state['range_min_samples_split'][1])
-    min_samples_leaf = trial.suggest_int('min_samples_leaf', st.session_state['range_min_samples_leaf'][0], st.session_state['range_min_samples_leaf'][1])
-
-    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=n_estimators,
-                                  max_depth=max_depth,
-                                  min_samples_split=min_samples_split,
-                                  min_samples_leaf=min_samples_leaf,
-                                  random_state=123))
-
-    score = cross_val_score(model, st.session_state['X'], st.session_state['y'], cv=3, scoring='neg_mean_squared_error')
-
-
-    ############# Progress bar test
-    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
-    #############
-    
-    
-    return score.mean()
-
-def launch_optim_random_forest():
-    ############# Progress bar test
     progress_text = "Calcul en cours. Veuillez patienter."
     st.session_state['my_bar'] = st.progress(0, text=progress_text)
-    #############
-    #st.session_state['range_n_estimators'] = st.session_state['slider_range_n_estimators']
-    #st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
-    #st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split']
-    #st.session_state['range_min_samples_leaf'] = st.session_state['slider_range_min_samples_leaf']
 
-    st.session_state['slider_range_n_estimators'] = st.session_state['range_n_estimators'] 
-    st.session_state['slider_range_max_depth'] = st.session_state['range_max_depth']
-    st.session_state['slider_range_min_samples_split'] = st.session_state['range_min_samples_split'] 
-    st.session_state['slider_range_min_samples_leaf'] = st.session_state['range_min_samples_leaf'] 
+    st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
+    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
+    st.session_state['range_eta'] = st.session_state['slider_range_eta']
+    st.session_state['range_min_child_weight'] = st.session_state['slider_range_min_child_weight']
+
+    # Initialiser l’étude Optuna
+    study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+
+    start_time = time.time()
+    max_time = st.session_state['temps_max']
 
     with st.spinner('Optimisation des hyperparamètres...'):
-        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-        study.optimize(objective_random_forest, n_trials=st.session_state['nb_trials'])
-        ############# Progress bar test
-        st.session_state['my_bar'].empty()
-        #############
-        st.session_state['best_params'] = study.best_params
-        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
-        
+
+        def timed_objective(trial):
+            elapsed = time.time() - start_time
+            progress = min(elapsed / max_time, 1.0)  # Cap at 100%
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+
+            return objective_xgboost(trial)
+
+        study.optimize(timed_objective, n_trials=st.session_state['nb_trials'], timeout=max_time)
+
+    # Nettoyer la barre à la fin
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
+                    
+
+### Random Forest related functions
 def get_radar_random_forest_slider():
     min_a = st.session_state['slider_range_n_estimators'][0]
     max_a = st.session_state['slider_range_n_estimators'][1]
@@ -787,6 +761,58 @@ def get_radar_random_forest_optim():
                         showlegend=False)
 
     st.plotly_chart(fig_radar_optim)
+
+def objective_random_forest(trial):
+    n_estimators = trial.suggest_int('n_estimators', st.session_state['range_n_estimators'][0], st.session_state['range_n_estimators'][1])
+    max_depth = trial.suggest_int('max_depth', st.session_state['range_max_depth'][0], st.session_state['range_max_depth'][1])
+    min_samples_split = trial.suggest_int('min_samples_split', st.session_state['range_min_samples_split'][0], st.session_state['range_min_samples_split'][1])
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', st.session_state['range_min_samples_leaf'][0], st.session_state['range_min_samples_leaf'][1])
+
+    model = MultiOutputRegressor(RandomForestRegressor(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        min_samples_split=min_samples_split,
+        min_samples_leaf=min_samples_leaf,
+        random_state=123
+    ))
+
+    score = cross_val_score(
+        model,
+        st.session_state['X'],
+        st.session_state['y'],
+        cv=3,
+        scoring='neg_mean_squared_error'
+    )
+
+    return score.mean()
+
+def launch_optim_random_forest():
+    progress_text = "Calcul en cours. Veuillez patienter."
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+
+    # Synchroniser les sliders
+    st.session_state['slider_range_n_estimators'] = st.session_state['range_n_estimators'] 
+    st.session_state['slider_range_max_depth'] = st.session_state['range_max_depth']
+    st.session_state['slider_range_min_samples_split'] = st.session_state['range_min_samples_split'] 
+    st.session_state['slider_range_min_samples_leaf'] = st.session_state['range_min_samples_leaf'] 
+
+    start_time = time.time()
+    max_time = st.session_state['temps_max']
+
+    with st.spinner('Optimisation des hyperparamètres...'):
+
+        def timed_objective(trial):
+            elapsed = time.time() - start_time
+            progress = min(elapsed / max_time, 1.0)
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return objective_random_forest(trial)
+
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+        study.optimize(timed_objective, n_trials=st.session_state['nb_trials'], timeout=max_time)
+
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
 
 
 ### CatBoost related functions
@@ -874,42 +900,52 @@ def objective_catboost(trial):
     depth = trial.suggest_int('depth', st.session_state['range_depth'][0], st.session_state['range_depth'][1])
     subsample = trial.suggest_float('subsample', st.session_state['range_subsample'][0], st.session_state['range_subsample'][1])
 
-    model = MultiOutputRegressor(cb.CatBoostRegressor(iterations=n_iterations,
-                              learning_rate=learning_rate,
-                              depth=depth,
-                              subsample=subsample,
-                              random_state=123))
+    model = MultiOutputRegressor(cb.CatBoostRegressor(
+        iterations=n_iterations,
+        learning_rate=learning_rate,
+        depth=depth,
+        subsample=subsample,
+        random_state=123,
+        verbose=0
+    ))
 
-    score = cross_val_score(model, st.session_state['X_scaled'], st.session_state['y_scaled'], cv=3, scoring='neg_mean_squared_error', verbose=0)
+    score = cross_val_score(
+        model,
+        st.session_state['X_scaled'],
+        st.session_state['y_scaled'],
+        cv=3,
+        scoring='neg_mean_squared_error'
+    )
 
-
-    ############# Progress bar test
-    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
-    #############
-    
-    
     return score.mean()
 
 def launch_optim_catboost():
-    ## Progress bar 
     progress_text = "Calcul en cours. Veuillez patienter."
     st.session_state['my_bar'] = st.progress(0, text=progress_text)
-    ##
+
+    # Récupération des plages depuis les sliders
     st.session_state['range_n_iterations'] = st.session_state['slider_range_n_iterations']
     st.session_state['range_learning_rate'] = st.session_state['slider_range_learning_rate']
     st.session_state['range_depth'] = st.session_state['slider_range_depth']
     st.session_state['range_subsample'] = st.session_state['slider_range_subsample']
-    #st.session_state['nb_trials'] = nb_trial
+
+    start_time = time.time()
+    max_time = st.session_state['temps_max']
 
     with st.spinner('Optimisation des hyperparamètres...'):
-        study = optuna.create_study(direction='minimize', sampler= optuna.samplers.RandomSampler())
-        study.optimize(objective_catboost, n_trials=st.session_state['nb_trials'])
-        ## Progress bar 
-        st.session_state['my_bar'].empty()
-        ##
-        st.session_state['best_params'] = study.best_params
-        st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study)) 
 
+        def timed_objective(trial):
+            elapsed = time.time() - start_time
+            progress = min(elapsed / max_time, 1.0)
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return objective_catboost(trial)
+
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+        study.optimize(timed_objective, n_trials=st.session_state['nb_trials'], timeout=max_time)
+
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
 
 ### Autres fonctions
 
