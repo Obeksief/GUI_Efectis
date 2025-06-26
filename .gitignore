@@ -1,0 +1,20 @@
+# Exclure les fichiers compilés Python
+*.pyc
+__pycache__/
+
+# Exclure le dossier data
+data/
+
+# Exclure le dossier CatBoost info
+catboost_info/
+
+# Autres exclusions courantes pour les projets Python
+.env
+*.env
+*.log
+*.sqlite3
+*.db
+.DS_Store
+*.egg-info/
+dist/
+build/
