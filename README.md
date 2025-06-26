@@ -8,6 +8,7 @@ Ce projet consiste en une interface graphique (GUI) intuitive qui permet aux uti
 - [x] Ajouter des architectures de réseaux de neurones dans la partie "Entraînements préliminaires"
 - [ ] Rattacher au GPU les calculs éligibles 
 - [ ] Faire un graphique par output car les graphiques d'erreurs sont surchargés et illisibles
+- [ ] Ajout page modèle spécifique aux données temporelles 
 - [ ] Faire une video tutoriel
 - [ ] Ajouter méthode de clustering pour faire un modèle par cluster
 - [ ] Ajout de traitement des données temporelles
