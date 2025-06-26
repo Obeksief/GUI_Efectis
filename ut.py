@@ -429,6 +429,11 @@ def get_radar_nn_optim():
     
     st.plotly_chart(fig_radar_optim)
 
+    st.markdown('#### Les hyperparamètres optimaux sont :')
+    st.write('nombre de neurones première couche :', st.session_state['best_params']['first_layer'])
+    st.write('nombre de neurones seconde couche :', st.session_state['best_params']['second_layer'])
+    st.write('taille de batch :', st.session_state['best_params']['batch_size'])
+
 def get_radar_nn_slider():
     min_a = st.session_state['slider_range_first_layer'][0]
     max_a = st.session_state['slider_range_first_layer'][1]
@@ -539,6 +544,29 @@ def launch_optim_nn():
     st.session_state['my_bar'].empty()
     st.session_state['best_params'] = study.best_params
     st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
+
+def launch_optim_nn_iter():
+    progress_text = "Calcul en cours. Veuillez patienter."
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+
+    nb_trials = st.session_state['nb_trials']
+    trial_counter = {'count': 0}  # dictionnaire pour permettre la mise à jour dans la fonction interne
+
+    with st.spinner('Optimisation des hyperparamètres...'):
+
+        def counted_objective(trial):
+            result = objective_nn(trial)
+            trial_counter['count'] += 1
+            progress = trial_counter['count'] / nb_trials
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return result
+
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+        study.optimize(counted_objective, n_trials=nb_trials)
+
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
     
 
     
@@ -645,9 +673,6 @@ def objective_xgboost(trial):
                             cv=3, 
                             scoring='neg_mean_squared_error')
 
-    ############# Progress bar test
-    st.session_state['my_bar'].progress(trial.number/st.session_state['nb_trials'])
-    #############
     
     return score.mean()
 
@@ -676,6 +701,38 @@ def launch_optim_xgboost():
             return objective_xgboost(trial)
 
         study.optimize(timed_objective, n_trials=st.session_state['nb_trials'], timeout=max_time)
+
+    # Nettoyer la barre à la fin
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
+
+def launch_optim_xgboost_iter():
+    progress_text = "Calcul en cours. Veuillez patienter."
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+
+    # Récupération des plages de valeurs depuis les sliders
+    st.session_state['range_nbr_estimateurs'] = st.session_state['slider_range_nbr_estimateurs']
+    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth']
+    st.session_state['range_eta'] = st.session_state['slider_range_eta']
+    st.session_state['range_min_child_weight'] = st.session_state['slider_range_min_child_weight']
+
+    # Initialiser l’étude Optuna
+    study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+
+    nb_trials = st.session_state['nb_trials']
+    trial_counter = {'count': 0}  # Compteur mutable
+
+    with st.spinner('Optimisation des hyperparamètres...'):
+
+        def counted_objective(trial):
+            result = objective_xgboost(trial)
+            trial_counter['count'] += 1
+            progress = trial_counter['count'] / nb_trials
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return result
+
+        study.optimize(counted_objective, n_trials=nb_trials)
 
     # Nettoyer la barre à la fin
     st.session_state['my_bar'].empty()
@@ -762,6 +819,12 @@ def get_radar_random_forest_optim():
 
     st.plotly_chart(fig_radar_optim)
 
+    st.markdown('#### Les hyperparamètres optimaux sont :')
+    st.write('nombre d estimateurs :', st.session_state['best_params']['n_estimators'])
+    st.write('profondeur maximale :', st.session_state['best_params']['max_depth'])
+    st.write('nombre minimum d\'échantillons pour diviser un noeud :', st.session_state['best_params']['min_samples_split'])
+    st.write('nombre minimum d\'échantillons par feuille :', st.session_state['best_params']['min_samples_leaf'])
+
 def objective_random_forest(trial):
     n_estimators = trial.suggest_int('n_estimators', st.session_state['range_n_estimators'][0], st.session_state['range_n_estimators'][1])
     max_depth = trial.suggest_int('max_depth', st.session_state['range_max_depth'][0], st.session_state['range_max_depth'][1])
@@ -791,10 +854,10 @@ def launch_optim_random_forest():
     st.session_state['my_bar'] = st.progress(0, text=progress_text)
 
     # Synchroniser les sliders
-    st.session_state['slider_range_n_estimators'] = st.session_state['range_n_estimators'] 
-    st.session_state['slider_range_max_depth'] = st.session_state['range_max_depth']
-    st.session_state['slider_range_min_samples_split'] = st.session_state['range_min_samples_split'] 
-    st.session_state['slider_range_min_samples_leaf'] = st.session_state['range_min_samples_leaf'] 
+    st.session_state['range_n_estimators']  = st.session_state['slider_range_n_estimators']
+    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth'] 
+    st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split'] 
+    st.session_state['range_min_samples_leaf'] = st.session_state['slider_range_min_samples_leaf'] 
 
     start_time = time.time()
     max_time = st.session_state['temps_max']
@@ -809,6 +872,32 @@ def launch_optim_random_forest():
 
         study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
         study.optimize(timed_objective, n_trials=st.session_state['nb_trials'], timeout=max_time)
+
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
+
+def launch_optim_random_forest_iter():
+    progress_text = "Calcul en cours. Veuillez patienter."
+    n_trials = st.session_state['nb_trials']
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+
+    current_trial = 0  # Compteur d’itérations
+    st.session_state['range_n_estimators']  = st.session_state['slider_range_n_estimators']
+    st.session_state['range_max_depth'] = st.session_state['slider_range_max_depth'] 
+    st.session_state['range_min_samples_split'] = st.session_state['slider_range_min_samples_split'] 
+    st.session_state['range_min_samples_leaf'] = st.session_state['slider_range_min_samples_leaf'] 
+
+    with st.spinner('Optimisation des hyperparamètres...'):
+        def counting_objective(trial):
+            nonlocal current_trial
+            current_trial += 1
+            progress = min(current_trial / n_trials, 1.0)
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return objective_random_forest(trial)
+
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+        study.optimize(counting_objective, n_trials=n_trials)
 
     st.session_state['my_bar'].empty()
     st.session_state['best_params'] = study.best_params
@@ -841,6 +930,12 @@ def get_radar_catboost_optim():
                         showlegend=False)
 
     st.plotly_chart(fig_radar_optim)
+
+    st.markdown('#### Les hyperparamètres optimaux sont :')
+    st.write('nombre d\'itérations :', st.session_state['best_params']['n_iterations'])
+    st.write('taux d\'apprentissage :', round(st.session_state['best_params']['learning_rate'],3))
+    st.write('profondeur de l\'arbre :', st.session_state['best_params']['depth'])
+    st.write('subsample :', round(st.session_state['best_params']['subsample'],2))
 
 def get_radar_catboost_slider():
     min_a = st.session_state['slider_range_n_iterations'][0]
@@ -946,6 +1041,69 @@ def launch_optim_catboost():
     st.session_state['my_bar'].empty()
     st.session_state['best_params'] = study.best_params
     st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
+
+def launch_optim_catboost_iter():
+    progress_text = "Calcul en cours. Veuillez patienter."
+    n_trials = st.session_state['nb_trials']
+    st.session_state['my_bar'] = st.progress(0, text=progress_text)
+
+    # Récupération des plages depuis les sliders
+    st.session_state['range_n_iterations'] = st.session_state['slider_range_n_iterations']
+    st.session_state['range_learning_rate'] = st.session_state['slider_range_learning_rate']
+    st.session_state['range_depth'] = st.session_state['slider_range_depth']
+    st.session_state['range_subsample'] = st.session_state['slider_range_subsample']
+
+    current_trial = 0  # Compteur d’itérations
+
+    with st.spinner('Optimisation des hyperparamètres...'):
+        def counting_objective(trial):
+            nonlocal current_trial
+            current_trial += 1
+            progress = min(current_trial / n_trials, 1.0)
+            st.session_state['my_bar'].progress(progress, text=progress_text)
+            return objective_catboost(trial)
+
+        study = optuna.create_study(direction='minimize', sampler=optuna.samplers.RandomSampler())
+        study.optimize(counting_objective, n_trials=n_trials)
+
+    st.session_state['my_bar'].empty()
+    st.session_state['best_params'] = study.best_params
+    st.plotly_chart(optuna.visualization.plot_parallel_coordinate(study))
+
+
+
+### Erreurs 
+
+def display_errors(model, X_test, y_test, model_type=None, scaler_y = None):
+    """
+    Display the performance of a model on a test set. The MAPE and RMSE are calculated and displayed.
+
+    """
+    
+
+    y_pred = model.predict(X_test)
+    
+    if model_type == 'neural_network':
+        print("Model type is neural network, reshaping y_pred if necessary.")
+        if y_pred.ndim == 1:
+            print("y_pred is 1D, reshaping to 2D.")
+            y_pred = y_pred.reshape(-1, 1)
+        scaler = st.session_state['scaler_y']
+        y_pred = scaler.inverse_transform(y_pred)
+        y_test = scaler.inverse_transform(y_test)
+
+
+    
+    mape = np.mean(np.abs((y_test - y_pred) / y_test))  
+    rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
+
+    st.markdown("### Performance du modèle sur l'ensemble de test")
+    st.write(f"MAPE: {mape:.2%}")
+    st.write(f"RMSE: {rmse:.2f}")
+
+
+
+
 
 ### Autres fonctions
 

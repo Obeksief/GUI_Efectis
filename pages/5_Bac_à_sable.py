@@ -46,7 +46,7 @@ with tab1:
         col_1, col_2 = st.columns([1,1])
         
         with col_1:
-            st.session_state['slider_range_nbr_estimateurs'] = st.slider('Nombre d\'estimateurs', value=[50, 200], step=10, min_value=20, max_value=500)
+            st.session_state['slider_range_nbr_estimateurs'] = st.slider('Nombre d\'estimateurs', value=[50, 200], step=10, min_value=20, max_value=2000)
             st.session_state['slider_range_max_depth'] = st.slider('Profondeur maximale', value=[3, 10], step=1, min_value=1, max_value=15)
             st.session_state['slider_range_eta'] = st.slider('Taux d\'apprentissage', value=[0.01, 0.2], step=0.1, min_value=0.01, max_value=0.5)
             st.session_state['slider_range_min_child_weight'] = st.slider('Poids minimal des feuilles', value=[1, 3], step=1, min_value=1, max_value=10)
@@ -58,7 +58,7 @@ with tab1:
             st.session_state['categories'] = ['nombre d\'estimateurs', 'profondeur maximale', 'taux d\'apprentissage', 'poids minimal des feuilles']
 
             if st.button('Valider les choix'):
-                launch_optim_xgboost()
+                launch_optim_xgboost_iter()
                 best_param = st.session_state['best_params']
                 best_nb_estimators = best_param['n_estimators']
                 best_max_depth = best_param['max_depth']
@@ -74,13 +74,14 @@ with tab1:
                 best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
                 st.session_state['model'] = best_model
                 st.session_state['type_model'] = 'XGBoost'
+                with st.spinner('Calcul des erreurs du meilleur modèle...'):
+                    display_errors(model = best_model, X_test=st.session_state['X_test'], y_test=st.session_state['y_test'])
                 st.session_state.afficher_radar_xgb_param_optim = True
 
         with col_2:
             get_radar_xgboost_slider()
             if st.session_state.afficher_radar_xgb_param_optim:
                 get_radar_xgboost_optim()
-                st.write(st.session_state['best_params'])
                 st.session_state.trained_bool_1 = True
 
     ####################################
@@ -104,7 +105,7 @@ with tab1:
             st.session_state['categories'] = ['nombre de neurones première couche', 'nombre de neurones seconde couche', 'taille de batch'] 
 
             if st.button('Valider les choix'):
-                launch_optim_nn()
+                launch_optim_nn_iter()
 
                
                 best_first_layer = st.session_state['best_params']['first_layer']
@@ -127,6 +128,13 @@ with tab1:
                 best_model.fit(st.session_state['X_scaled'], st.session_state['y'])
                 st.session_state['model'] = best_model
                 st.session_state['type_model'] = 'Neural_network'
+                with st.spinner('Calcul des erreurs du meilleur modèle...'):
+                    display_errors(model = best_model, 
+                                   X_test=st.session_state['X_test_scaled'], 
+                                   y_test=st.session_state['y_test_scaled'], 
+                                   model_type='neural_network', 
+                                   scaler_y=st.session_state['scaler_y'])
+                    
                 st.session_state.afficher_radar_nn_param_optim = True
                     
         with col_2:
@@ -134,7 +142,7 @@ with tab1:
             get_radar_nn_slider()
             if st.session_state.afficher_radar_nn_param_optim:
                 get_radar_nn_optim()
-                st.write(st.session_state['best_params'])
+                # st.write(st.session_state['best_params'])
 
                 st.session_state.trained_bool_1 = True
      
@@ -156,7 +164,7 @@ with tab1:
             st.session_state['categories'] = ['number of estimators', 'max depth', 'min samples split', 'min samples leaf']
 
             if st.button('Validate choices'):
-                launch_optim_random_forest()
+                launch_optim_random_forest_iter()
                 best_param = st.session_state['best_params']
                 best_n_estimators = best_param['n_estimators']
                 best_max_depth = best_param['max_depth']
@@ -170,6 +178,8 @@ with tab1:
                 best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
                 st.session_state['model'] = best_model
                 st.session_state['type_model'] = 'Random Forest'
+                with st.spinner('Calcul des erreurs du meilleur modèle...'):
+                    display_errors(model = best_model, X_test=st.session_state['X_test'], y_test=st.session_state['y_test'], model_type='Random Forest')
                 st.session_state.afficher_radar_rf_param_optim = True
 
         with col_2:
@@ -188,7 +198,7 @@ with tab1:
         col_1, col_2 = st.columns([1,1])
 
         with col_1:
-            st.session_state['slider_range_n_iterations'] = st.slider('Number of iterations', value=[100,500], min_value=50, max_value=1000)
+            st.session_state['slider_range_n_iterations'] = st.slider('Number of iterations', value=[100,500], min_value=50, max_value=2000)
             st.session_state['slider_range_learning_rate'] = st.slider('Learning rate', value=[0.01, 0.1], min_value=0.001, max_value=0.5)
             st.session_state['slider_range_depth'] = st.slider('Depth', value=[3, 10], min_value=1, max_value=15)
             st.session_state['slider_range_subsample'] = st.slider('Subsample', value=[0.5, 0.8], min_value=0.05, max_value=1.)
@@ -198,7 +208,7 @@ with tab1:
             st.session_state['categories'] = ['number of iterations', 'learning rate', 'depth', 'subsample']
 
             if st.button('Validate choices'):
-                launch_optim_catboost()
+                launch_optim_catboost_iter()
                 best_param = st.session_state['best_params']
                 best_n_iterations = best_param['n_iterations']
                 best_learning_rate = best_param['learning_rate']
@@ -212,6 +222,8 @@ with tab1:
                 best_model.fit(st.session_state['X_train'], st.session_state['y_train'])
                 st.session_state['model'] = best_model
                 st.session_state['type_model'] = 'CatBoost'
+                with st.spinner('Calcul des erreurs du meilleur modèle...'):
+                    display_errors(model = best_model, X_test=st.session_state['X_test'], y_test=st.session_state['y_test'])
                 st.session_state.afficher_radar_cat_param_optim = True
 
                 
@@ -359,6 +371,7 @@ with tab2:
                                                                                              32, 
                                                                                              valid_size)
                 st.info('Modèle entraîné')
+                st.session_state.trained_bool = True
                 err = evaluate_customized_model(st.session_state['personalized_model'], st.session_state['personalized_X_test'], st.session_state['personalized_Y_test'])
                 
                 for i in range(len(metrics)):
