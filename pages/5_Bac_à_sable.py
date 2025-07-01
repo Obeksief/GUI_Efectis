@@ -260,7 +260,7 @@ with tab2:
                 nb_neurons = []   
                 nb_activation = []
                 for _ in range(nb_hidden_player):
-                    nb_neurons.append(st.number_input(f'Nombre de neurones pour la couche {_+1}', min_value=1, max_value=500, value = 64, key= _))
+                    nb_neurons.append(st.number_input(f'Nombre de neurones pour la couche {_+1}', min_value=1, max_value=2000, value = 64, key= _))
                     nb_activation.append(st.selectbox(f'Fonction d\'activation pour la couche {_+1}', ['leaky_relu','relu', 'tanh', 'sigmoid', 'selu', 'elu' ]))
 
         
