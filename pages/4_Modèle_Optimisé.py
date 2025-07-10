@@ -41,6 +41,8 @@ tab1, tab2, tab3 = st.tabs(["Aperçu des données de travail", "Entrainement d\'
 # Modèle par défaut ( Celui qui a le mieux performé dans Analyse Agnostique )
 
 #st.session_state['Model_opt'] = str_model
+if 'type_model' not in st.session_state:
+    st.session_state['type_model'] = None
 
 st.session_state['nb_trials'] = 1000
 nb_trials = 1000
@@ -137,7 +139,7 @@ with tab2:
                 st.write(st.session_state['best_params'])
                 st.write(type(st.session_state['best_params']))
 
-                for key, value in st.session_state['best_params']:
+                for key, value in st.session_state['best_params'].items():
                     print('Le paramètre :', key,'a la valeur', value )
 
                 st.write(st.session_state['best_params'])
@@ -158,7 +160,7 @@ with tab2:
             st.session_state['slider_range_first_layer'] = [2,256]
             st.session_state['slider_range_second_layer'] = [2,256]
             st.session_state['slider_range_batch_size'] = [1,50]
-            st.session_state['nb_epoch'] = 500
+            st.session_state['nb_epoch'] = 1000
 
          
 
@@ -252,7 +254,7 @@ with tab2:
     ##### Calcul sur l'ensemble test #####
     #####       Mono output          #####
 
-    if st.session_state['afficher_radar_param_optim']:
+    if st.session_state['afficher_radar_param_optim'] and st.session_state['model'] is not None:
         st.write('Erreur MAPE :', st.session_state['model_MAPE'],'%')
         if len(st.session_state['outputs']) > 1:
             #for i in range()
@@ -263,7 +265,7 @@ with tab2:
             st.write(st.session_state['model_RMSE_rawvalues'])
 
         ##### Graphe de parité Mono output #####
-        if len(st.session_state['outputs']) == 1:
+        if len(st.session_state['outputs']) == 1 and st.session_state['model'] is not None:
             if st.session_state['type_model'] == 'Neural_network' or st.session_state['type_model'] == 'XGBoost' or st.session_state['type_model'] == 'CatBoost':
 
                 y_test_scaled = np.array(st.session_state['y_test_scaled'])
@@ -297,7 +299,7 @@ with tab2:
             # Afficher le graphe
             st.pyplot(fig)
         ##### Graphe de parité Multi output #####
-        elif len(st.session_state['outputs']) > 1:
+        elif len(st.session_state['outputs']) > 1 and st.session_state['model'] is not None:
             if st.session_state['type_model'] == 'Random Forest':
                 y_pred = st.session_state['model'].predict(st.session_state['X_test'])
                 y_test = st.session_state['y_test'].to_numpy()
@@ -329,7 +331,7 @@ with tab2:
 with tab3:
     if st.button('Afficher le lien de téléchargement'):
         st.write(st.session_state['afficher_radar_param_optim'])
-        if st.session_state['afficher_radar_param_optim']:
+        if st.session_state['afficher_radar_param_optim'] and st.session_state['model'] is not None:
         
             st.write(st.session_state['type_model'])
 
